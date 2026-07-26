@@ -36,4 +36,8 @@ tts/.venv/
 __pycache__/
 *.pyc
 
+tts/voices/*.onnx
+tts/voices/*.json
+tts/.venv/
+__pycache__/
 

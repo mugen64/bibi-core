@@ -1,0 +1,7 @@
+[voices]
+directory = "./voices"
+default = "en_US-ryan-medium.onnx"
+
+
+[piper]
+sample_rate = 22050
