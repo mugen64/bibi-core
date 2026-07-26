@@ -15,18 +15,6 @@ class Piper:
 
         self.voice = PiperVoice.load(str(self.voice_path))
 
-    def speak(self, text: str, output_file: str):
-        """
-        Generate speech and save it as a WAV file.
-        """
-
-        with wave.open(output_file, "wb") as wav_file:
-            self.voice.synthesize_wav(text, wav_file)
-
-
-#    def stream(self, text):
-#         yield from self.voice.synthesize(text)
-#
 
     def stream(self, text):
         for chunk in self.voice.synthesize(text):

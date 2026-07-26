@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 import io
@@ -49,4 +49,27 @@ def create_wav(request: TTSRequest):
         content=wav.read(),
         media_type="audio/wav",
     )
+
+
+
+@router.websocket("/tts-stream")
+async def tts_stream(websocket: WebSocket):
+
+    await websocket.accept()
+
+    request = await websocket.receive_json()
+
+    voice_path = vm.get_voice_path(
+        request["voice"]
+    )
+
+    piper = Piper(voice_path)
+
+    sink = HttpAudioSink(websocket)
+
+    await sink.write(
+        piper.stream(request["text"])
+    )
+
+    await websocket.close()
 
