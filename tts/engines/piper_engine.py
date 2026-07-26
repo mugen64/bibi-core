@@ -1,6 +1,7 @@
 import wave
 from pathlib import Path
 from piper import PiperVoice
+from engines.models import AudioChunk
 
 
 class Piper:
@@ -23,5 +24,15 @@ class Piper:
             self.voice.synthesize_wav(text, wav_file)
 
 
+#    def stream(self, text):
+#         yield from self.voice.synthesize(text)
+#
+
     def stream(self, text):
-         yield from self.voice.synthesize(text)
+        for chunk in self.voice.synthesize(text):
+            yield AudioChunk(
+                data=chunk.audio_int16_bytes,
+                sample_rate=chunk.sample_rate,
+                channels=chunk.sample_channels,
+                sample_width=chunk.sample_width,
+            )

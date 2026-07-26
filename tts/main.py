@@ -1,7 +1,8 @@
 import wave
-from piper_engine import Piper
+from engines.piper_engine import Piper
 from voice_manager import VoiceManager
-from play_stream import play_stream
+# from play_stream import play_stream
+from output.host import HostAudioSink
 
 
 manager = VoiceManager()
@@ -14,15 +15,12 @@ print("using", voice_path)
 
 tts = Piper(voice_path)
 
-tts.speak(
-    "Hello, this is my local Piper text to speech system.",
-    "test.wav"
-)
+host = HostAudioSink()
 
-print("Generated test.wav")
+audio = tts.stream("Hello World")
 
+host.write(audio)
 
-play_stream(tts,"Hello this is streaming")
 
 
 

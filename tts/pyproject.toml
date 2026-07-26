@@ -3,7 +3,11 @@ name = "bibi-tts"
 version = "0.1.0"
 requires-python = "==3.12.13"
 dependencies = [
+    "fastapi>=0.140.0",
     "piper-tts>=1.6.0",
+    "python-multipart>=0.0.32",
+    "sounddevice>=0.5.5",
+    "uvicorn>=0.51.0",
 ]
 
 
