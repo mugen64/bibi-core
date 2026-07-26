@@ -16,7 +16,12 @@ config = load_config()
 
 
 # Voice configuration
-VOICE_DIR = BASE_DIR / config["voices"]["directory"]
+voice_directory = config["voices"]["directory"]
+if voice_directory.startswith("./"):
+    VOICE_DIR = BASE_DIR / voice_directory
+else:
+    VOICE_DIR = Path(voice_directory)
+
 DEFAULT_VOICE = config["voices"]["default"]
 
 

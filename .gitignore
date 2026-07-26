@@ -41,3 +41,4 @@ tts/voices/*.json
 tts/.venv/
 __pycache__/
 
+*.wav
