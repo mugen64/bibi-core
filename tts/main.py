@@ -1,5 +1,14 @@
-from config import VOICE_DIR, DEFAULT_VOICE
+from voice_manager import VoiceManager
 
-print(VOICE_DIR)
-print(DEFAULT_VOICE)
+
+manager = VoiceManager()
+
+print("Available voices:")
+
+for voice in manager.list_voices():
+    print("-", voice)
+
+
+print("\nDefault voice:")
+print(manager.get_voice_path())
 
