@@ -19,3 +19,10 @@ pw-play file.ext
 ```
 
 ```
+
+
+Check current python executable
+```
+python -c "import sys; print(sys.executable)"
+```
+

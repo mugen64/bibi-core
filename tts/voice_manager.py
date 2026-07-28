@@ -44,3 +44,5 @@ class VoiceManager:
 
         return voice_path
 
+    def unload(self, mode: str):
+        self._engines.pop(model, None)

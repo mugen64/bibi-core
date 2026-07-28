@@ -1,0 +1,15 @@
+[project]
+name = "bibi-stt"
+version = "0.1.0"
+description = "Bibi voice assistant sound to text service"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.140.9",
+    "python-multipart>=0.0.32",
+    "pywhispercpp",
+    "uvicorn>=0.51.0",
+]
+
+[tool.uv.sources]
+pywhispercpp = { git = "https://github.com/absadiki/pywhispercpp" }
