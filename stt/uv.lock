@@ -38,6 +38,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "numpy" },
     { name = "python-multipart" },
     { name = "pywhispercpp" },
     { name = "uvicorn" },
@@ -46,6 +47,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.140.9" },
+    { name = "numpy", specifier = ">=2.5.1" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "pywhispercpp", git = "https://github.com/absadiki/pywhispercpp" },
     { name = "uvicorn", specifier = ">=0.51.0" },

@@ -12,7 +12,7 @@ class TranscriptSegment:
     start_ms: int
     end_ms: int
     text: str
-    probability: float | None
+    score: float | None
 
 
 @dataclass
