@@ -15,3 +15,8 @@ class ApiResponse:
 
 class AudioFormat(str, Enum):
     WAV = "wav"
+
+@dataclass
+class TranscriptionResponse(BaseModel):
+    segments:list[dict]
+

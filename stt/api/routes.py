@@ -1,16 +1,18 @@
 from fastapi import APIRouter, HTTPException, WebSocket
 from fastapi.responses import StreamingResponse, Response
 
+from api.models import ApiResponse
 from engine_manager import STTManager
 
+router = APIRouter()
 sm = STTManager()
 
 @router.get("/models")
 def list_voices():
-    voices = vm.list_voices()
+    models = sm.list_models()
     return ApiResponse(
-        data=voices,
+        data=models,
         status=200,
-        message=f"{len(voices)} available voices"
+        message=f"{len(models)} available models"
     )
 
