@@ -1,8 +1,9 @@
 import wave
-from pathlib import path
+from pathlib import Path
 from engines.models import AudioChunk
+from engines.base import AudioSource
 
-class WaveFileSource:
+class WavFileAudioSource(AudioSource):
     def __init__(self, path: Path):
         self.path = path
     def __iter__(self):
@@ -12,9 +13,9 @@ class WaveFileSource:
                 if not data:
                     break
                 yield AudioChunk(
-                    data=data.
+                    data=data,
                     sample_rate=wav.getframerate(),
                     channels=wav.getnchannels(),
-                    sample_width=wav.getsamplewidth()
+                    sample_width=wav.getsampwidth(),
                 )
 

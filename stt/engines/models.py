@@ -1,4 +1,4 @@
-from dataclasses import dataclass,property
+from dataclasses import dataclass
 
 @dataclass
 class AudioChunk:

@@ -1,9 +1,9 @@
 import numpy as np
-import collections.abs import Iterable
+from collections.abc import Iterable
 from pathlib import Path
 
 from engines.base import STTEngine
-    from engines.models import Transcript,AudioChunk,TranscriptSegment
+from engines.models import Transcript,AudioChunk,TranscriptSegment
 from pywhispercpp.model import Model
 
 
@@ -31,7 +31,7 @@ class WhisperCppEngine(STTEngine):
 
         segments = self._model.transcribe(
             samples,
-            language=self.language,
+            
             print_progress=False,
             print_realtime=False,
         )
@@ -119,10 +119,10 @@ class WhisperCppEngine(STTEngine):
             )
 
 
-        if chunk.sample_rate != 16000:
-            raise ValueError(
-                "Whisper requires 16000Hz audio"
-            )
+        # if chunk.sample_rate != 16000:
+        #    raise ValueError(
+        #        "Whisper requires 16000Hz audio"
+        #    )
 
         if chunk.channels != 1:
             raise ValueError(

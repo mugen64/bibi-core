@@ -29,8 +29,8 @@ class STTManager:
         if model is None:
             model = self._default_model
             
-        if model in self.engines:
-            return self.engines[model]
+        if model in self._engines:
+            return self._engines[model]
 
         model_path =  self._model_dir/f"{model}.bin"
 
