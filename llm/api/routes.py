@@ -30,7 +30,6 @@ async def chat(request: ChatRequest):
     response_chunks = []
 
     history = [m.model_dump() for m in request.conversation_history]
-    # append system prompt to the beginning of the history
     history.insert(0, {"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. If you don't know the answer, say 'I don't know'. Do not make up answers. If the user asks for a list, provide a numbered list. If the user asks for a code snippet, provide a code block. If the user asks for a table, provide a markdown table. If the user asks for a summary, provide a concise summary."})
     try:
         
