@@ -5,21 +5,25 @@ from fastapi.responses import StreamingResponse
 
 from api.models import ChatRequest, HealthResponse, ApiResponse
 from engine_manager import engine_manager
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    """
-    Returns the full response as a single JSON object.
-    This is what the Go gateway calls - it never sees raw tokens.
-    """
+    if len(request.prompt) == 0 :
+        return ApiResponse(
+            status=400,
+            message="prompt is required"
+        )
     history = [m.model_dump() for m in request.conversation_history]
     response_chunks = []
     async for chunk in engine_manager.stream_chat_response(
         request.prompt, history
     ):
+        logger.debug(chunk)
         response_chunks.append(chunk)
     return ApiResponse(
         data="".join(response_chunks),
@@ -35,20 +39,56 @@ async def chat_stream(request: ChatRequest):
     The Go gateway reads this line-by-line and forwards each chunk to TTS
     as it arrives, rather than waiting for the full response.
 
+    Line types the gateway should handle:
+      {"type": "chunk", "text": "..."}                  - forward to TTS
+      {"type": "done"}                                    - stream finished normally
+      {"type": "error", "code": "...", "message": "..."}  - stop, surface to user
+
     NOTE: once proto/llm.proto is written, this becomes a gRPC streaming
     endpoint instead - keeping it as HTTP/NDJSON for now so it's easy to
     test standalone with curl before wiring up gRPC.
     """
+    try:
+        await engine_manager.ensure_ready()
+    except ModelNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": e.code, "message": str(e)})
+    except OllamaUnreachableError as e:
+        raise HTTPException(status_code=503, detail={"code": e.code, "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"code": "unexpected", "message": str(e)})
 
     async def generate():
         history = [m.model_dump() for m in request.conversation_history]
-        async for chunk in engine_manager.stream_chat_response(
-            request.prompt, history
-        ):
-            yield json.dumps({"type": "chunk", "text": chunk}) + "\n"
+        try:
+            async for chunk in engine_manager.stream_chat_response(
+                request.prompt, history
+            ):
+                yield json.dumps({"type": "chunk", "text": chunk}) + "\n"
+
+            yield json.dumps({"type": "done"}) + "\n"
+
+        except LLMServiceError as e:
+            # Generation started successfully (200 already sent) but broke
+            # partway through - headers are committed, so the error has to
+            # travel as a line inside the stream, not an HTTP status code.
+            logger.warning("Stream failed mid-generation: %s", e)
+            yield json.dumps({"type": "error", "code": e.code, "message": str(e)}) + "\n"
+
+        except asyncio.CancelledError:
+            # Client (Go gateway) disconnected early - e.g. user interrupted
+            # with barge-in. Not an error, just clean up quietly.
+            logger.info("Client disconnected mid-stream, stopping generation")
+            raise
+
+        except Exception as e:
+            # Catch-all so an unexpected bug never leaves the gateway
+            # hanging on a connection that dies with no explanation.
+            logger.exception("Unexpected error during generation")
+            yield json.dumps(
+                {"type": "error", "code": "internal_error", "message": str(e)}
+            ) + "\n"
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
-
 
 @router.get("/health", response_model=HealthResponse)
 async def health():

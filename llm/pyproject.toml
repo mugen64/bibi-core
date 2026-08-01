@@ -8,8 +8,6 @@ dependencies = [
     "fastapi>=0.140.9",
     "uvicorn[standard]>=0.30",
     "uvicorn>=0.51.0",
+    "ollama>=0.6.2",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"

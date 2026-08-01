@@ -24,5 +24,11 @@ class EngineManager:
     async def health_check(self) -> bool:
         return await self.engine.health_check()
 
+    async def ensure_ready(self) -> None:
+        """Raises ModelNotFoundError / OllamaUnreachableError if the
+        service can't currently serve a request. Call before streaming."""
+        await self.engine.ensure_model_available()
+
+
 
 engine_manager = EngineManager()
