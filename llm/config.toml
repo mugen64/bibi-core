@@ -1,0 +1,3 @@
+[models]
+directory = "/home/kyosimba/whisper.cpp/models"
+default = "ggml-base"

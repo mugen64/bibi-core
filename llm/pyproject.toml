@@ -1,0 +1,13 @@
+[project]
+name = "bibi-llm"
+version = "0.1.0"
+description = "Bibi voice assistant llm"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.140.9",
+    "numpy>=2.5.1",
+    "python-multipart>=0.0.32",
+    "uvicorn>=0.51.0",
+]
+

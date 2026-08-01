@@ -47,3 +47,5 @@ __pycache__/
 
 stt/models
 !stt/models/.gitkeep
+
+__test__
