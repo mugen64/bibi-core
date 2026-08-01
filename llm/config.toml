@@ -1,3 +1,16 @@
-[models]
-directory = "/home/kyosimba/whisper.cpp/models"
-default = "ggml-base"
+[ollama]
+host = "http://localhost:11434"
+model = "llama3.1"
+temperature = 0.7
+context_window = 4096
+keep_alive = "5m"
+
+[chunking]
+boundary_chars = [".", "?", "!"]
+max_chunk_chars = 200
+min_chunk_chars = 10
+
+[server]
+host = "0.0.0.0"
+port = 5003
+log_level = "info"

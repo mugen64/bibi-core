@@ -1,22 +1,13 @@
 from fastapi import FastAPI
 
 from api.routes import router
-
+from config import config
 
 app = FastAPI(
-    title="Bibi STT",
-    version="0.1.0",
+    title="bibi-llm"
 )
-
 app.include_router(router)
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=5100,
-    )
-
+def get_app() -> FastAPI:
+    return app

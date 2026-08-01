@@ -1,16 +1,13 @@
-import asyncio
-from engines.piper_engine import Piper
-from voice_manager import VoiceManager
-from play_stream import play_stream
-from output.host import HostAudioSink
+from server import get_app
 
+app = get_app()
 
-vm = VoiceManager()
-voice = vm.get_voice_path()
-engine = Piper(voice)
-asyncio.run(play_stream(engine, "Play a stream daily at 12 pm"))
+if __name__ == "__main__":
+    import uvicorn
 
-
-
-
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=5100,
+    )
 

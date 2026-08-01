@@ -1,46 +1,28 @@
-from pathlib import Path
-from config import MODEL_DIR, DEFAULT_MODEL
-from engines.base import STTEngine
-from engines.whispercpp_engine import WhisperCppEngine
+from collections.abc import AsyncIterator
+
+from engines.chunker import chunk_stream
+from engines.ollama_engine import OllamaEngine
 
 
-class STTManager:
+class EngineManager:
     def __init__(self):
-        self._model_dir = MODEL_DIR
-        self._engines: dict[str, STTEngine] = {}
-        self._default_model = DEFAULT_MODEL
+        self.engine = OllamaEngine()
 
-    def list_models(self) -> list[str]:
+    async def stream_chat_response(
+        self,
+        prompt: str,
+        conversation_history: list[dict] | None = None,
+    ) -> AsyncIterator[str]:
         """
-        Returns all available whisper models 
+        End-to-end: prompt in, sentence-sized text chunks out.
+        This is what the API layer calls - it never sees raw tokens.
         """
-        models = []
-        for file in self._model_dir.glob("*.bin"):
-            models.append(file.stem)
+        token_stream = self.engine.stream_response(prompt, conversation_history)
+        async for chunk in chunk_stream(token_stream):
+            yield chunk
 
-        return sorted(models)
+    async def health_check(self) -> bool:
+        return await self.engine.health_check()
 
-    def has_model(self, model:str)->bool:
 
-        return self._model_dir/f"{model}.bin".exists()
-
-    def get_engine(self, model: str | None = None)->STTEngine:
-
-        if model is None:
-            model = self._default_model
-            
-        if model in self._engines:
-            return self._engines[model]
-
-        model_path =  self._model_dir/f"{model}.bin"
-
-        if not model_path.exists():
-             raise FileNotFoundError(
-                f"Unknown model '{model}'"
-            )
-
-        engine = WhisperCppEngine(model_path)
-        self._engines[model]= engine
-        
-        return engine
-
+engine_manager = EngineManager()

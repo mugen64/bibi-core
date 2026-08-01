@@ -2,16 +2,16 @@ from config import MODEL_DIR, DEFAULT_MODEL
 from engine_manager import STTManager
 from engines.audio_sources import WavFileAudioSource
 
-sm = STTManager()
+from server import get_app
 
-def main():
-    e = sm.get_engine("ggml-base")
-    src = WavFileAudioSource("../tts/test.wav")
-
-    t = e.transcribe(src)
-
-    print([s.text for s in t.segments])
-
+app = get_app()
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=5100,
+    )
+
