@@ -1,7 +1,6 @@
 import json
 
 from fastapi import APIRouter, HTTPException
-from llm.errors import ModelNotFoundError, OllamaUnreachableError, LLMServiceError
 import asyncio
 from fastapi.responses import StreamingResponse
 
@@ -25,7 +24,7 @@ async def chat(request: ChatRequest):
     except OllamaUnreachableError as e:
         raise HTTPException(status_code=503, detail={"code": e.code, "message": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"code": "unexpected", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"code": "internal_error", "message": str(e)})
 
     history = [m.model_dump() for m in request.conversation_history]
     response_chunks = []
@@ -41,33 +40,23 @@ async def chat(request: ChatRequest):
             response_chunks.append({"type": "chunk", "text": chunk})
 
         response_chunks.append({"type": "done"})
+    
+        return ApiResponse(
+            data=response_chunks,
+            status=200,
+            message="OK",
+        )
 
     except LLMServiceError as e:
-        # Generation started successfully (200 already sent) but broke
-        # partway through - headers are committed, so the error has to
-        # travel as a line inside the stream, not an HTTP status code.
         logger.warning("Stream failed mid-generation: %s", e)
-        yield json.dumps({"type": "error", "code": e.code, "message": str(e)}) + "\n"
-
+        raise HTTPException(status_code=400, detail={"type": "error", "code": e.code, "message": str(e)})
     except asyncio.CancelledError:
-        # Client (Go gateway) disconnected early - e.g. user interrupted
-        # with barge-in. Not an error, just clean up quietly.
         logger.info("Client disconnected mid-stream, stopping generation")
-        raise
-
+        raise HTTPException(status_code=400, detail={"type": "error", "code": e.code, "message": str(e)})
     except Exception as e:
-        # Catch-all so an unexpected bug never leaves the gateway
-        # hanging on a connection that dies with no explanation.
         logger.exception("Unexpected error during generation")
-        yield json.dumps(
-            {"type": "error", "code": "internal_error", "message": str(e)}
-            ) + "\n"
-    
-    return ApiResponse(
-        data=response_chunks,
-        status=200,
-        message="OK",
-    )
+        raise HTTPException(status_code=500, detail={"type":"internal_error", "message": str(e)})
+
 
 
 @router.post("/chat/stream")
@@ -93,7 +82,7 @@ async def chat_stream(request: ChatRequest):
     except OllamaUnreachableError as e:
         raise HTTPException(status_code=503, detail={"code": e.code, "message": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"code": "unexpected", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"code": "internal_error", "message": str(e)})
 
     async def generate():
         history = [m.model_dump() for m in request.conversation_history]
