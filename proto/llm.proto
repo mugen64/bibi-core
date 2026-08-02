@@ -1,0 +1,43 @@
+syntax="proto3";
+
+package llm;
+
+option go_package = "github.com/mugen64/bibi-core/internal/llm/pb";
+
+service LLMChat {
+  // -server-streaming client sends one request that is answered by a stream
+  rpc StreamChat(ChatRequest) returns (stream ChatEvent);
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+message ChatMessage {
+  string role = 1; // "user" | "assistant"
+  string content = 2;
+}
+
+message ChatRequest {
+  string prompt = 1;
+  repeated ChatMessage conversation_history = 2;
+}
+
+message ChatEvent {
+  enum EventType {
+    CHUNK =0;
+    DONE=1;
+    ERROR=2;
+  }
+  EventType type =1;
+  string text =2;
+  string error_code=3;
+  string error_message=4;
+}
+
+message HealthRequest{}
+
+message HealthResponse{
+  bool healthy = 1;
+  bool ollama_reachable = 2;
+}
+
+
+

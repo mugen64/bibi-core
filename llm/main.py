@@ -1,15 +1,31 @@
+import asyncio
+
 import uvicorn
 
 from config import config
+from grpc_server import serve as serve_grpc
 from server import get_app
 
 app = get_app()
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
+
+async def serve_http():
+    uv_config = uvicorn.Config(
+        app,
         host=config.server.host,
         port=config.server.port,
         log_level=config.server.log_level,
-        reload=True,
     )
+    server = uvicorn.Server(uv_config)
+    await server.serve()
+
+
+async def main():
+    await asyncio.gather(
+        serve_grpc(),
+        serve_http(),
+    )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

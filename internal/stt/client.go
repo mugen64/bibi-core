@@ -1,4 +1,4 @@
-package grpcclients
+package stt
 
 import (
 	"context"

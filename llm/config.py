@@ -37,7 +37,8 @@ class ChunkingConfig:
 @dataclass
 class ServerConfig:
     host: str = "0.0.0.0"
-    port: int = 8002
+    port: int = 5002
+    grpc_port: int = 50052  # matches gateway.toml's llm_addr
     log_level: str = "info"
 
 

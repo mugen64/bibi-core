@@ -9,5 +9,12 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "uvicorn>=0.51.0",
     "ollama>=0.6.2",
+    "grpcio>=1.83.0",
+    "grpcio-reflection>=1.83.0",
+]
+
+[dependency-groups]
+dev = [
+    "grpcio-tools>=1.83.0",
 ]
 

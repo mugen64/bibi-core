@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/mugen64/bibi-core/internal/grpcclients"
+	llmclient "github.com/mugen64/bibi-core/internal/llm"
+	sttclient "github.com/mugen64/bibi-core/internal/stt"
 )
 
 /**
@@ -35,7 +36,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func NewHandler(sttClient *grpcclients.STTClient) http.HandlerFunc {
+func NewHandler(sttClient *sttclient.STTClient, llmClient *llmclient.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -43,7 +44,7 @@ func NewHandler(sttClient *grpcclients.STTClient) http.HandlerFunc {
 			return
 		}
 
-		session := NewSession(conn, sttClient)
+		session := NewSession(conn, sttClient, llmClient)
 		session.Run()
 	}
 }

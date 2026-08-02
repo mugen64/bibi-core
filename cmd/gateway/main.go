@@ -12,7 +12,8 @@ import (
 	"fmt"
 
 	"github.com/mugen64/bibi-core/internal/config"
-	"github.com/mugen64/bibi-core/internal/grpcclients"
+	llmclient "github.com/mugen64/bibi-core/internal/llm"
+	sttclient "github.com/mugen64/bibi-core/internal/stt"
 	"github.com/mugen64/bibi-core/internal/ws"
 )
 
@@ -26,16 +27,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	sttClient, err := grpcclients.NewSTTClient(cfg.Services.STTAddr)
+	sttClient, err := sttclient.NewSTTClient(cfg.Services.STTAddr)
 	if err != nil {
 		slog.Error("failed to connect to stt service", "error", err)
 		os.Exit(1)
 	}
 	defer sttClient.Close()
 
+	llmClient, err := llmclient.NewClient(cfg.Services.LLMAddr)
+	if err != nil {
+		slog.Error("failed to connect to llm service", "error", err)
+		os.Exit(1)
+	}
+	defer llmClient.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/ws", ws.NewHandler(sttClient))
+	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient))
 
 	addr := cfg.Server.Host + ":" + itoa(cfg.Server.Port)
 	srv := &http.Server{
