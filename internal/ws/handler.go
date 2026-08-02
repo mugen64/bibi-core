@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	llmclient "github.com/mugen64/bibi-core/internal/llm"
 	sttclient "github.com/mugen64/bibi-core/internal/stt"
+	ttsclient "github.com/mugen64/bibi-core/internal/tts"
 )
 
 /**
@@ -36,15 +37,14 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func NewHandler(sttClient *sttclient.STTClient, llmClient *llmclient.Client) http.HandlerFunc {
+func NewHandler(sttClient *sttclient.STTClient, llmClient *llmclient.Client, ttsClient *ttsclient.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			slog.Error("websocket upgrade failed", "error", err)
 			return
 		}
-
-		session := NewSession(conn, sttClient, llmClient)
+		session := NewSession(conn, sttClient, llmClient, ttsClient)
 		session.Run()
 	}
 }

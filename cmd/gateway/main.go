@@ -14,6 +14,8 @@ import (
 	"github.com/mugen64/bibi-core/internal/config"
 	llmclient "github.com/mugen64/bibi-core/internal/llm"
 	sttclient "github.com/mugen64/bibi-core/internal/stt"
+	ttsclient "github.com/mugen64/bibi-core/internal/tts"
+
 	"github.com/mugen64/bibi-core/internal/ws"
 )
 
@@ -41,9 +43,16 @@ func main() {
 	}
 	defer llmClient.Close()
 
+	ttsClient, err := ttsclient.NewClient(cfg.Services.TTSAddr)
+	if err != nil {
+		slog.Error("failed to connect to tts service", "error", err)
+		os.Exit(1)
+	}
+	defer ttsClient.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient))
+	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
 
 	addr := cfg.Server.Host + ":" + itoa(cfg.Server.Port)
 	srv := &http.Server{

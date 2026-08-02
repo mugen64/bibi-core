@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	sttclient "github.com/mugen64/bibi-core/internal/stt"
 	sttpb "github.com/mugen64/bibi-core/internal/stt/pb"
 
 	llmclient "github.com/mugen64/bibi-core/internal/llm"
 	llmpb "github.com/mugen64/bibi-core/internal/llm/pb"
+
+	ttsclient "github.com/mugen64/bibi-core/internal/tts"
 )
 
 const (
@@ -33,27 +36,38 @@ type ControlMessage struct {
 // Session wraps one client's WebSocket connection and owns its lifecycle.
 type Session struct {
 	conn      *websocket.Conn
-	send      chan []byte // outgoing frames (JSON or binary), queued for the write pump
+	send      chan outboundMessage // outgoing frames (JSON or binary), queued for the write pump
 	sttClient *sttclient.STTClient
 	sttStream *sttclient.STTStream
 	llmClient *llmclient.Client
+	ttsClient *ttsclient.Client
 	history   []llmclient.ChatMessage // running conversation, in-memory per session
+	ttsQueue  chan string             // sentence chunks awaiting synthesis, processed in order
 	ctx       context.Context
 	cancel    context.CancelFunc
 	logger    *slog.Logger
 }
 
-func NewSession(conn *websocket.Conn, sttClient *sttclient.STTClient, llmClient *llmclient.Client) *Session {
+type outboundMessage struct {
+	frameType int // websocket.TextMessage or websocket.BinaryMessage
+	data      []byte
+}
+
+func NewSession(conn *websocket.Conn, sttClient *sttclient.STTClient, llmClient *llmclient.Client, ttsClient *ttsclient.Client) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Session{
+	s := &Session{
 		conn:      conn,
-		send:      make(chan []byte, 32),
+		send:      make(chan outboundMessage, 32),
 		sttClient: sttClient,
 		llmClient: llmClient,
+		ttsClient: ttsClient,
+		ttsQueue:  make(chan string, 32),
 		ctx:       ctx,
 		cancel:    cancel,
 		logger:    slog.With("component", "ws_session"),
 	}
+	go s.ttsWorker() // one worker, processes the queue strictly in order
+	return s
 }
 
 func (s *Session) Run() {
@@ -186,7 +200,7 @@ func (s *Session) sendJSON(msg ControlMessage) {
 		return
 	}
 	select {
-	case s.send <- data:
+	case s.send <- outboundMessage{frameType: websocket.TextMessage, data: data}:
 	default:
 		s.logger.Warn("send buffer full, dropping message")
 	}
@@ -205,13 +219,13 @@ func (s *Session) writePump() {
 
 	for {
 		select {
-		case data, ok := <-s.send:
+		case msg, ok := <-s.send:
 			s.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				s.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			if err := s.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			if err := s.conn.WriteMessage(msg.frameType, msg.data); err != nil {
 				s.logger.Error("write failed", "error", err)
 				return
 			}
@@ -244,12 +258,17 @@ func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string) {
 		case llmpb.ChatEvent_CHUNK:
 			fullResponse.WriteString(event.Text)
 			s.sendJSON(ControlMessage{Type: "llm_chunk", Text: event.Text})
-			// Next step: this is also the trigger point to send
-			// event.Text to the TTS service as it arrives.
+
+			// Queue this sentence for TTS. Non-blocking send with a
+			// fallback log rather than blocking forwardLLMEvents if
+			// the tts worker is somehow backed up.
+			select {
+			case s.ttsQueue <- event.Text:
+			default:
+				s.logger.Warn("tts queue full, dropping chunk")
+			}
 
 		case llmpb.ChatEvent_DONE:
-			// Append this turn to the running history so the next
-			// utterance's LLM call has context of what was just said.
 			s.history = append(s.history,
 				llmclient.ChatMessage{Role: "user", Content: prompt},
 				llmclient.ChatMessage{Role: "assistant", Content: fullResponse.String()},
@@ -257,6 +276,43 @@ func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string) {
 
 		case llmpb.ChatEvent_ERROR:
 			s.sendError(event.ErrorCode, event.ErrorMessage)
+		}
+	}
+}
+
+// ttsWorker is the ONLY goroutine that calls ttsClient.Synthesize. By
+// pulling from ttsQueue one item at a time and fully draining each
+// stream's audio before moving to the next, sentence playback order
+// is guaranteed regardless of how fast each individual TTS call runs.
+func (s *Session) ttsWorker() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case text, ok := <-s.ttsQueue:
+			if !ok {
+				return
+			}
+			s.synthesizeAndSend(text)
+		}
+	}
+}
+
+func (s *Session) synthesizeAndSend(text string) {
+	stream, err := s.ttsClient.Synthesize(s.ctx, text, "" /* voice - default for now */)
+	if err != nil {
+		s.logger.Error("failed to start tts stream", "error", err)
+		s.sendError("tts_unavailable", "could not synthesize speech")
+		return
+	}
+
+	// Drain this sentence's audio fully before returning to the loop -
+	// this is what enforces ordering against the next queued sentence.
+	for chunk := range stream.Events {
+		select {
+		case s.send <- outboundMessage{frameType: websocket.BinaryMessage, data: chunk.Data}:
+		case <-s.ctx.Done():
+			return
 		}
 	}
 }
