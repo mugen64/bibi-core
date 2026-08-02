@@ -32,11 +32,11 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// STTStream wraps ONE bidirectional transcription call, scoped to a
+// Stream wraps ONE bidirectional transcription call, scoped to a
 // single WebSocket session/utterance. Same read/write-pump idea as the
 // WebSocket session - one goroutine only ever calls stream.Recv(),
 // callers push outgoing audio via SendAudio().
-type STTStream struct {
+type Stream struct {
 	stream sttpb.SpeechToText_StreamTranscribeClient
 	Events chan *sttpb.TranscriptEvent
 	cancel context.CancelFunc
@@ -46,7 +46,7 @@ type STTStream struct {
 // OpenStream starts a new bidirectional call. Pass the parent context
 // from the WebSocket connection so that if the client disconnects,
 // this stream is cancelled automatically too.
-func (c *Client) OpenStream(ctx context.Context) (*STTStream, error) {
+func (c *Client) OpenStream(ctx context.Context) (*Stream, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	stream, err := c.client.StreamTranscribe(ctx)
@@ -55,7 +55,7 @@ func (c *Client) OpenStream(ctx context.Context) (*STTStream, error) {
 		return nil, fmt.Errorf("open stt stream: %w", err)
 	}
 
-	s := &STTStream{
+	s := &Stream{
 		stream: stream,
 		Events: make(chan *sttpb.TranscriptEvent, 16),
 		cancel: cancel,
@@ -68,7 +68,7 @@ func (c *Client) OpenStream(ctx context.Context) (*STTStream, error) {
 
 // SendAudio pushes one audio chunk into the stream. Safe to call
 // repeatedly as new mic data arrives from the WebSocket.
-func (s *STTStream) SendAudio(data []byte, sampleRate, channels, sampleWidth int32, endOfUtterance bool) error {
+func (s *Stream) SendAudio(data []byte, sampleRate, channels, sampleWidth int32, endOfUtterance bool) error {
 	return s.stream.Send(&sttpb.AudioChunkMsg{
 		Data:           data,
 		SampleRate:     sampleRate,
@@ -81,7 +81,7 @@ func (s *STTStream) SendAudio(data []byte, sampleRate, channels, sampleWidth int
 // recvPump is the ONLY goroutine allowed to call stream.Recv(). It
 // forwards every TranscriptEvent onto the Events channel until the
 // server closes the stream or an error occurs.
-func (s *STTStream) recvPump() {
+func (s *Stream) recvPump() {
 	defer close(s.Events)
 	for {
 		event, err := s.stream.Recv()
@@ -99,11 +99,11 @@ func (s *STTStream) recvPump() {
 
 // CloseSend signals "no more audio coming" without tearing down the
 // stream - lets the server finish emitting any final transcript first.
-func (s *STTStream) CloseSend() error {
+func (s *Stream) CloseSend() error {
 	return s.stream.CloseSend()
 }
 
 // Close cancels the stream immediately (e.g. client disconnected).
-func (s *STTStream) Close() {
+func (s *Stream) Close() {
 	s.cancel()
 }

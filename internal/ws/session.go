@@ -166,7 +166,7 @@ func (s *Session) handleControlMessage(data []byte) {
 func (s *Session) beginNewTurn() {
 	newTurn := atomic.AddUint64(&s.currentTurn, 1)
 	s.interruptCurrentTurn(newTurn)
-	s.startSTTStream()
+	s.startStream()
 }
 
 // interruptCurrentTurn cancels any in-flight LLM/TTS work from the
@@ -209,7 +209,7 @@ drain:
 	}
 }
 
-func (s *Session) startSTTStream() {
+func (s *Session) startStream() {
 	if s.sttStream != nil {
 		s.sttStream.Close()
 	}
