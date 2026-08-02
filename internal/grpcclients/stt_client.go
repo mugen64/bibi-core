@@ -12,9 +12,6 @@ import (
 	sttpb "github.com/mugen64/bibi-core/internal/stt/pb"
 )
 
-// STTClient holds the long-lived connection to the STT service.
-// Create one at gateway startup, reuse it for every session -
-// opening a new TCP/HTTP2 connection per user would be wasteful.
 type STTClient struct {
 	conn   *grpc.ClientConn
 	client sttpb.SpeechToTextClient

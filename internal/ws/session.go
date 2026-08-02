@@ -1,11 +1,14 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mugen64/bibi-core/internal/grpcclients"
+	sttpb "github.com/mugen64/bibi-core/internal/stt/pb"
 )
 
 const (
@@ -25,24 +28,31 @@ type ControlMessage struct {
 
 // Session wraps one client's WebSocket connection and owns its lifecycle.
 type Session struct {
-	conn   *websocket.Conn
-	send   chan []byte // outgoing frames (JSON or binary), queued for the write pump
-	logger *slog.Logger
+	conn      *websocket.Conn
+	send      chan []byte // outgoing frames (JSON or binary), queued for the write pump
+	sttClient *grpcclients.STTClient
+	sttStream *grpcclients.STTStream
+	ctx       context.Context
+	cancel    context.CancelFunc
+	logger    *slog.Logger
 }
 
-func NewSession(conn *websocket.Conn) *Session {
+func NewSession(conn *websocket.Conn, sttClient *grpcclients.STTClient) *Session {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Session{
-		conn:   conn,
-		send:   make(chan []byte, 32),
-		logger: slog.With("component", "ws_session"),
+		conn:      conn,
+		send:      make(chan []byte, 32),
+		sttClient: sttClient,
+		ctx:       ctx,
+		cancel:    cancel,
+		logger:    slog.With("component", "ws_session"),
 	}
 }
 
-// Run starts the read and write pumps and blocks until the connection closes.
-// Call this in a goroutine per connection.
 func (s *Session) Run() {
 	go s.writePump()
-	s.readPump() // blocks until connection closes or errors
+	s.readPump()
+	s.cancel() // ensure any open STT stream is torn down on disconnect
 }
 
 func (s *Session) readPump() {
@@ -79,32 +89,88 @@ func (s *Session) readPump() {
 }
 
 func (s *Session) handleAudioChunk(data []byte) {
-	// Placeholder for now - next step wires this into the STT gRPC stream.
-	s.logger.Info("received audio chunk", "bytes", len(data))
+	if s.sttStream == nil {
+		s.logger.Warn("audio received before stream started, dropping")
+		s.sendError("no_active_stream", "send {\"type\":\"start\"} before audio")
+		return
+	}
+
+	// ASSUMPTION: 16kHz mono 16-bit PCM. Adjust if your client sends
+	// something else, or negotiate this in the "start" message instead
+	// of hardcoding it.
+	err := s.sttStream.SendAudio(data, 16000, 1, 2, false)
+	if err != nil {
+		s.logger.Error("failed to send audio to stt", "error", err)
+		s.sendError("stt_send_failed", err.Error())
+	}
 }
 
 func (s *Session) handleControlMessage(data []byte) {
 	var msg ControlMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		s.logger.Warn("malformed control message", "error", err)
 		s.sendError("bad_request", "malformed control message")
 		return
 	}
 
-	s.logger.Info("received control message", "type", msg.Type)
-
 	switch msg.Type {
 	case "start":
-		// Next step: open the STT gRPC stream here
+		s.startSTTStream()
 	case "end_utterance":
-		// Next step: signal STT that the utterance is complete,
-		// trigger the LLM call with the final transcript
+		s.endUtterance()
 	default:
 		s.sendError("unknown_message_type", "unrecognized control message type: "+msg.Type)
 	}
 }
 
-// sendJSON queues a control message to the client.
+func (s *Session) startSTTStream() {
+	if s.sttStream != nil {
+		s.sttStream.Close() // replace any stale stream
+	}
+
+	stream, err := s.sttClient.OpenStream(s.ctx)
+	if err != nil {
+		s.logger.Error("failed to open stt stream", "error", err)
+		s.sendError("stt_unavailable", "could not start transcription")
+		return
+	}
+	s.sttStream = stream
+
+	// Dedicated goroutine forwards transcript events from the STT
+	// service back to the client over the WebSocket, as they arrive.
+	go s.forwardTranscripts(stream)
+}
+
+func (s *Session) forwardTranscripts(stream *grpcclients.STTStream) {
+	for event := range stream.Events {
+		switch event.Type {
+		case sttpb.TranscriptEvent_PARTIAL:
+			s.sendJSON(ControlMessage{Type: "partial_transcript", Text: joinSegments(event)})
+		case sttpb.TranscriptEvent_FINAL:
+			s.sendJSON(ControlMessage{Type: "final_transcript", Text: joinSegments(event)})
+			// Next step: this is the trigger point to call the LLM service
+		case sttpb.TranscriptEvent_ERROR:
+			s.sendError(event.ErrorCode, event.ErrorMessage)
+		}
+	}
+}
+
+func joinSegments(event *sttpb.TranscriptEvent) string {
+	text := ""
+	for _, seg := range event.Segments {
+		text += seg.Text
+	}
+	return text
+}
+
+func (s *Session) endUtterance() {
+	if s.sttStream == nil {
+		return
+	}
+	if err := s.sttStream.CloseSend(); err != nil {
+		s.logger.Warn("failed to close stt send side", "error", err)
+	}
+}
+
 func (s *Session) sendJSON(msg ControlMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -137,8 +203,6 @@ func (s *Session) writePump() {
 				s.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			// Control messages are JSON text; TTS audio (later) will be
-			// binary - for now everything routed through send is JSON.
 			if err := s.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 				s.logger.Error("write failed", "error", err)
 				return

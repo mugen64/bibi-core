@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/mugen64/bibi-core/internal/grpcclients"
 )
 
 /**
@@ -34,14 +35,15 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// Handler upgrades an HTTP connection to WebSocket and runs the session.
-func Handler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		slog.Error("websocket upgrade failed", "error", err)
-		return
-	}
+func NewHandler(sttClient *grpcclients.STTClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			slog.Error("websocket upgrade failed", "error", err)
+			return
+		}
 
-	session := NewSession(conn)
-	session.Run()
+		session := NewSession(conn, sttClient)
+		session.Run()
+	}
 }

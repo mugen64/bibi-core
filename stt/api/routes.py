@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException, WebSocket,Form,File,UploadFile
 from fastapi.responses import StreamingResponse, Response
 
 from api.models import ApiResponse,transcript_to_response
-from engine_manager import STTManager
+from engine_manager import stt_manager
 from config import DEFAULT_MODEL
 from engines.audio_sources import WavFileAudioSource, WebSocketAudioSource
+from audio_utils import calculate_duration
 
 router = APIRouter()
-sm = STTManager()
+sm = stt_manager
 
 @router.get("/models")
 def list_voices():
@@ -65,8 +66,10 @@ async def transcribe_stream(
     buffer = []
 
 
-    while True:
+    engine = stt_manager.get_engine() 
 
+    while True:
+ 
         chunk = await source.receive_chunk()
 
         if chunk is None:
@@ -83,7 +86,7 @@ async def transcribe_stream(
 
         if duration >= 5:
 
-            transcript = stt_manager.transcribe(
+            transcript = engine.transcribe(
                 buffer
             )
 
@@ -97,26 +100,3 @@ async def transcribe_stream(
 
             buffer.clear()
 
-
-
-
-
-
-def calculate_duration(
-    chunks: list[AudioChunk]
-) -> float:
-
-    total_bytes = sum(
-        len(c.data)
-        for c in chunks
-    )
-
-    bytes_per_second = (
-        chunks[0].sample_rate
-        *
-        chunks[0].channels
-        *
-        chunks[0].sample_width
-    )
-
-    return total_bytes / bytes_per_second

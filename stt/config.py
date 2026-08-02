@@ -19,4 +19,7 @@ else:
 
 MODEL_DIR = model_dir
 DEFAULT_MODEL =  config["models"]["default"] 
+HOST = "0.0.0.0"
+HTTP_PORT = 5001    # matches your original uvicorn.run port
+GRPC_PORT = 50051   # matches gateway.toml's stt_addr = "localhost:50051"
 
