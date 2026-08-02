@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>bibi-core — pipeline test client</title>
+<style>
+  :root {
+    --bg: #0b0d0f;
+    --panel: #14171a;
+    --border: #23282d;
+    --text: #d8dee3;
+    --dim: #6b7580;
+    --accent: #5fd68a;
+    --accent-dim: #2f6b47;
+    --live: #e0a45f;
+    --err: #e05f5f;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0;
+  }
+  header h1 span { color: var(--text); }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dim);
+    transition: background 0.15s;
+  }
+  .dot.connected { background: var(--accent); }
+  .dot.error { background: var(--err); }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    overflow: hidden;
+  }
+
+  .log {
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .line { display: flex; gap: 10px; line-height: 1.5; }
+  .line .tag {
+    flex-shrink: 0;
+    width: 88px;
+    text-align: right;
+    color: var(--dim);
+    font-size: 11px;
+    padding-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .line .body { white-space: pre-wrap; word-break: break-word; }
+  .line.partial .tag { color: var(--live); }
+  .line.partial .body { color: var(--live); }
+  .line.final .tag { color: var(--accent); }
+  .line.final .body { color: var(--text); font-weight: 600; }
+  .line.llm .tag { color: #7fa8d6; }
+  .line.system .tag, .line.system .body { color: var(--dim); font-style: italic; }
+  .line.error .tag, .line.error .body { color: var(--err); }
+
+  aside {
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 11px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .field input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 9px;
+    border-radius: 3px;
+  }
+  .field input:focus { outline: none; border-color: var(--accent-dim); }
+
+  button {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--dim); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  #connectBtn.connected { border-color: var(--accent-dim); color: var(--accent); }
+
+  #talkBtn {
+    padding: 22px 14px;
+    font-size: 13px;
+    border-color: var(--border);
+    user-select: none;
+  }
+  #talkBtn.recording {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: #0b0d0f;
+  }
+
+  .hint { color: var(--dim); font-size: 11px; line-height: 1.5; }
+
+  .meter {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.05s linear;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>bibi-core <span>/ pipeline test client</span></h1>
+  <div class="status">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">disconnected</span>
+  </div>
+</header>
+
+<main>
+  <div class="log" id="log"></div>
+
+  <aside>
+    <div class="field">
+      <label>Gateway WS URL</label>
+      <input id="wsUrl" value="ws://100.112.32.114:8080/ws" />
+    </div>
+
+    <button id="connectBtn">Connect</button>
+
+    <div class="field">
+      <label>Push to talk</label>
+      <button id="talkBtn" disabled>Hold to talk</button>
+      <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+      <div class="hint">
+        Hold the button (or Space) while speaking, release when done.
+        Releasing sends <code>end_utterance</code>. Pressing again while
+        the assistant is still responding interrupts it (barge-in).
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Playback format</label>
+      <div class="hint" id="formatStatus">not yet received</div>
+    </div>
+
+    <button id="clearBtn">Clear log</button>
+  </aside>
+</main>
+
+<script>
+const SEND_SAMPLE_RATE = 16000; // must match what the gateway/stt expects (see session.go handleAudioChunk)
+
+let ws = null;
+let audioCtx = null;
+let micStream = null;
+let sourceNode = null;
+let processorNode = null;
+let recording = false;
+
+let playbackCtx = null;
+let playbackQueueTime = 0;
+
+const el = {
+  log: document.getElementById('log'),
+  statusDot: document.getElementById('statusDot'),
+  statusText: document.getElementById('statusText'),
+  connectBtn: document.getElementById('connectBtn'),
+  talkBtn: document.getElementById('talkBtn'),
+  wsUrl: document.getElementById('wsUrl'),
+  meterFill: document.getElementById('meterFill'),
+  clearBtn: document.getElementById('clearBtn'),
+};
+
+function logLine(tag, text, cls) {
+  const line = document.createElement('div');
+  line.className = 'line ' + (cls || '');
+  line.innerHTML = `<div class="tag">${tag}</div><div class="body"></div>`;
+  line.querySelector('.body').textContent = text;
+  el.log.appendChild(line);
+  el.log.scrollTop = el.log.scrollHeight;
+}
+
+function setStatus(state, text) {
+  el.statusDot.className = 'dot ' + state;
+  el.statusText.textContent = text;
+}
+
+// ---------- Connection ----------
+
+el.connectBtn.addEventListener('click', () => {
+  if (ws) {
+    ws.close();
+    return;
+  }
+  connect();
+});
+
+function connect() {
+  const url = el.wsUrl.value.trim();
+  setStatus('', 'connecting…');
+  ws = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    setStatus('connected', 'connected');
+    el.connectBtn.textContent = 'Disconnect';
+    el.connectBtn.classList.add('connected');
+    el.talkBtn.disabled = false;
+    logLine('system', `connected to ${url}`, 'system');
+    initPlaybackContext();
+  };
+
+  ws.onclose = () => {
+    setStatus('', 'disconnected');
+    el.connectBtn.textContent = 'Connect';
+    el.connectBtn.classList.remove('connected');
+    el.talkBtn.disabled = true;
+    logLine('system', 'disconnected', 'system');
+    stopRecording();
+    ws = null;
+  };
+
+  ws.onerror = () => {
+    setStatus('error', 'error');
+  };
+
+  ws.onmessage = (event) => {
+    if (typeof event.data === 'string') {
+      handleControlMessage(JSON.parse(event.data));
+    } else {
+      handleAudioFrame(event.data);
+    }
+  };
+}
+
+let currentFormat = { sampleRate: 22050, channels: 1, sampleWidth: 2 }; // fallback until first audio_format arrives
+
+function handleControlMessage(msg) {
+  switch (msg.type) {
+    case 'partial_transcript':
+      logLine('partial', msg.text, 'partial');
+      break;
+    case 'final_transcript':
+      logLine('final', msg.text, 'final');
+      break;
+    case 'llm_chunk':
+      logLine('llm', msg.text, 'llm');
+      break;
+    case 'audio_format':
+      currentFormat = {
+        sampleRate: msg.sample_rate,
+        channels: msg.channels,
+        sampleWidth: msg.sample_width,
+      };
+      document.getElementById('formatStatus').textContent =
+        `${msg.sample_rate}Hz · ${msg.channels}ch · ${msg.sample_width * 8}-bit`;
+      break;
+    case 'interrupted':
+      logLine('system', 'interrupted — stopping playback', 'system');
+      stopPlayback();
+      break;
+    case 'error':
+      logLine('error', `[${msg.code}] ${msg.message}`, 'error');
+      break;
+    default:
+      logLine('system', JSON.stringify(msg), 'system');
+  }
+}
+
+// ---------- Mic capture: resample to 16kHz mono 16-bit PCM ----------
+// Uses ScriptProcessorNode for simplicity/broad support. It's
+// deprecated in favor of AudioWorklet - fine for a test client, worth
+// migrating to AudioWorklet if this becomes a real product client.
+
+async function startRecording() {
+  if (recording) return;
+  recording = true;
+  el.talkBtn.classList.add('recording');
+  el.talkBtn.textContent = 'Recording… release to send';
+
+  ws.send(JSON.stringify({ type: 'start' }));
+
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sourceNode = audioCtx.createMediaStreamSource(micStream);
+
+  const bufferSize = 4096;
+  processorNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+  processorNode.onaudioprocess = (e) => {
+    const input = e.inputBuffer.getChannelData(0);
+
+    // meter
+    let sum = 0;
+    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    const rms = Math.sqrt(sum / input.length);
+    el.meterFill.style.width = Math.min(100, rms * 400) + '%';
+
+    const resampled = downsampleTo16k(input, audioCtx.sampleRate, SEND_SAMPLE_RATE);
+    const pcm16 = floatTo16BitPCM(resampled);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(pcm16.buffer);
+    }
+  };
+
+  sourceNode.connect(processorNode);
+  processorNode.connect(audioCtx.destination);
+}
+
+function stopRecording() {
+  if (!recording) return;
+  recording = false;
+  el.talkBtn.classList.remove('recording');
+  el.talkBtn.textContent = 'Hold to talk';
+  el.meterFill.style.width = '0%';
+
+  if (processorNode) { processorNode.disconnect(); processorNode = null; }
+  if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'end_utterance' }));
+  }
+}
+
+function downsampleTo16k(buffer, fromRate, toRate) {
+  if (fromRate === toRate) return buffer;
+  const ratio = fromRate / toRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    result[i] = buffer[Math.floor(i * ratio)];
+  }
+  return result;
+}
+
+function floatTo16BitPCM(input) {
+  const output = new Int16Array(input.length);
+  for (let i = 0; i < input.length; i++) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return output;
+}
+
+// ---------- Playback: queue TTS audio chunks in order ----------
+
+function initPlaybackContext() {
+  playbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playbackQueueTime = playbackCtx.currentTime;
+}
+
+function handleAudioFrame(arrayBuffer) {
+  if (!playbackCtx) initPlaybackContext();
+
+  const pcm16 = new Int16Array(arrayBuffer);
+  const float32 = new Float32Array(pcm16.length);
+  for (let i = 0; i < pcm16.length; i++) {
+    float32[i] = pcm16[i] / 0x8000;
+  }
+
+  const audioBuffer = playbackCtx.createBuffer(1, float32.length, currentFormat.sampleRate);
+  audioBuffer.getChannelData(0).set(float32);
+
+  const source = playbackCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(playbackCtx.destination);
+
+  // Schedule strictly after whatever's already queued, so chunks play
+  // back-to-back in arrival order rather than overlapping.
+  const startAt = Math.max(playbackQueueTime, playbackCtx.currentTime);
+  source.start(startAt);
+  playbackQueueTime = startAt + audioBuffer.duration;
+
+  activeSources.push(source);
+}
+
+let activeSources = [];
+
+function stopPlayback() {
+  activeSources.forEach(s => { try { s.stop(); } catch (e) {} });
+  activeSources = [];
+  if (playbackCtx) playbackQueueTime = playbackCtx.currentTime;
+}
+
+// ---------- Controls ----------
+
+el.talkBtn.addEventListener('mousedown', startRecording);
+el.talkBtn.addEventListener('mouseup', stopRecording);
+el.talkBtn.addEventListener('mouseleave', () => { if (recording) stopRecording(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !e.repeat && !el.talkBtn.disabled) {
+    e.preventDefault();
+    startRecording();
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    stopRecording();
+  }
+});
+
+el.clearBtn.addEventListener('click', () => { el.log.innerHTML = ''; });
+</script>
+
+</body>
+</html>

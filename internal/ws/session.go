@@ -25,10 +25,13 @@ const (
 )
 
 type ControlMessage struct {
-	Type    string `json:"type"`
-	Text    string `json:"text,omitempty"`
-	Code    string `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
+	Type        string `json:"type"`
+	Text        string `json:"text,omitempty"`
+	Code        string `json:"code,omitempty"`
+	Message     string `json:"message,omitempty"`
+	SampleRate  int32  `json:"sample_rate,omitempty"`
+	Channels    int32  `json:"channels,omitempty"`
+	SampleWidth int32  `json:"sample_width,omitempty"`
 }
 
 type outboundMessage struct {
@@ -331,13 +334,29 @@ func (s *Session) synthesizeAndSend(job ttsJob) {
 	s.activeTTSStream = stream
 	s.mu.Unlock()
 
+	formatSent := false
+
 	for chunk := range stream.Events {
-		// Check on every chunk, not just at the start - a barge-in can
-		// land mid-sentence, and we want to stop sending audio to the
-		// client as soon as possible rather than finishing this sentence.
 		if atomic.LoadUint64(&s.currentTurn) != job.turn {
 			return
 		}
+
+		// Announce format before the first chunk of this sentence's
+		// audio, so the client knows how to interpret the raw PCM
+		// bytes that follow. Sent per-sentence rather than once per
+		// session in case different sentences ever use different
+		// voices - cheap (one small JSON message) relative to the
+		// audio itself.
+		if !formatSent {
+			s.sendJSON(ControlMessage{
+				Type:        "audio_format",
+				SampleRate:  chunk.SampleRate,
+				Channels:    chunk.Channels,
+				SampleWidth: chunk.SampleWidth,
+			})
+			formatSent = true
+		}
+
 		select {
 		case s.send <- outboundMessage{frameType: websocket.BinaryMessage, data: chunk.Data}:
 		case <-s.ctx.Done():
