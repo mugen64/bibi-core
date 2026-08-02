@@ -29,7 +29,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sttClient, err := sttclient.NewSTTClient(cfg.Services.STTAddr)
+	sttClient, err := sttclient.NewClient(cfg.Services.STTAddr)
 	if err != nil {
 		slog.Error("failed to connect to stt service", "error", err)
 		os.Exit(1)

@@ -37,7 +37,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func NewHandler(sttClient *sttclient.STTClient, llmClient *llmclient.Client, ttsClient *ttsclient.Client) http.HandlerFunc {
+func NewHandler(sttClient *sttclient.Client, llmClient *llmclient.Client, ttsClient *ttsclient.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {

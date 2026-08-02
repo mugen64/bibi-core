@@ -12,23 +12,23 @@ import (
 	sttpb "github.com/mugen64/bibi-core/internal/stt/pb"
 )
 
-type STTClient struct {
+type Client struct {
 	conn   *grpc.ClientConn
 	client sttpb.SpeechToTextClient
 }
 
-func NewSTTClient(addr string) (*STTClient, error) {
+func NewClient(addr string) (*Client, error) {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("dial stt service: %w", err)
 	}
-	return &STTClient{
+	return &Client{
 		conn:   conn,
 		client: sttpb.NewSpeechToTextClient(conn),
 	}, nil
 }
 
-func (c *STTClient) Close() error {
+func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
@@ -46,7 +46,7 @@ type STTStream struct {
 // OpenStream starts a new bidirectional call. Pass the parent context
 // from the WebSocket connection so that if the client disconnects,
 // this stream is cancelled automatically too.
-func (c *STTClient) OpenStream(ctx context.Context) (*STTStream, error) {
+func (c *Client) OpenStream(ctx context.Context) (*STTStream, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	stream, err := c.client.StreamTranscribe(ctx)
