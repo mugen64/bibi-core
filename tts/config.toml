@@ -1,7 +1,12 @@
 [voices]
 directory = "./voices"
 default = "en_US-ryan-medium.onnx"
-
+max_loaded = 3
 
 [piper]
 sample_rate = 22050
+
+[server]
+host = "0.0.0.0"
+port = 5000
+grpc_port = 50053

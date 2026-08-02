@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package tts;
+
+option go_package = "github.com/mugen64/bibi-core/internal/tts/pb";
+
+service TextToSpeech {
+  // Unary request (text in), streaming response (audio chunks out) -
+  // same shape as LLM's StreamChat: one input, no need for the client
+  // to send more once the request is issued.
+  rpc StreamSynthesize(SynthesizeRequest) returns (stream AudioChunkMsg);
+
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+message SynthesizeRequest {
+  string text = 1;
+  optional string voice = 2; // falls back to DEFAULT_VOICE if unset
+}
+
+message AudioChunkMsg {
+  bytes data = 1;
+  int32 sample_rate = 2;
+  int32 channels = 3;
+  int32 sample_width = 4;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  repeated string voices_available = 2;
+}

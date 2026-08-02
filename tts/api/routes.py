@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 import io
 import wave
 
-from voice_manager import VoiceManager
+from voice_manager import voice_manager
 from engines.piper_engine import Piper
 from api.models import ApiResponse, AudioFormat, TTSRequest
 
@@ -12,7 +12,7 @@ from output.wav_encoder import WavEncoder
 
 router = APIRouter()
 
-vm = VoiceManager()
+vm = voice_manager
 
 
 
@@ -35,9 +35,8 @@ def create_wav(request: TTSRequest):
             detail=f"Unsupported format: {request.format}",
         )
 
-    voice = vm.get_voice_path(request.voice)
 
-    engine = Piper(voice)
+    engine = voice_manager.get_engine(request.voice)
 
     encoder = WavEncoder()
 
@@ -59,11 +58,7 @@ async def tts_stream(websocket: WebSocket):
 
     request = await websocket.receive_json()
 
-    voice_path = vm.get_voice_path(
-        request["voice"]
-    )
-
-    piper = Piper(voice_path)
+    piper = voice_manager.get_engine(request["voice"])
 
     sink = HttpAudioSink(websocket)
 

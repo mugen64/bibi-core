@@ -27,4 +27,7 @@ DEFAULT_VOICE = config["voices"]["default"]
 
 # Piper configuration
 SAMPLE_RATE = config["piper"]["sample_rate"]
-
+MAX_LOADED_VOICES = config["voices"]["max_loaded"]
+HOST=config["server"]["host"]
+HTTP_PORT=config["server"]["port"]
+GRPC_PORT=config["server"]["grpc_port"]
