@@ -2,9 +2,11 @@ package stt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -12,6 +14,8 @@ import (
 
 	sttpb "github.com/mugen64/bibi-core/internal/stt/pb"
 )
+
+var ErrStreamClosed = errors.New("stt stream already closed")
 
 type Client struct {
 	conn   *grpc.ClientConn
@@ -42,6 +46,7 @@ type Stream struct {
 	Events chan *sttpb.TranscriptEvent
 	cancel context.CancelFunc
 	logger *slog.Logger
+	closed atomic.Bool
 }
 
 // OpenStream starts a new bidirectional call. Pass the parent context
@@ -70,6 +75,9 @@ func (c *Client) OpenStream(ctx context.Context) (*Stream, error) {
 // SendAudio pushes one audio chunk into the stream. Safe to call
 // repeatedly as new mic data arrives from the WebSocket.
 func (s *Stream) SendAudio(data []byte, sampleRate, channels, sampleWidth int32, endOfUtterance bool) error {
+	if s.closed.Load() {
+		return ErrStreamClosed
+	}
 	return s.stream.Send(&sttpb.AudioChunkMsg{
 		Data:           data,
 		SampleRate:     sampleRate,
@@ -101,11 +109,13 @@ func (s *Stream) recvPump() {
 // CloseSend signals "no more audio coming" without tearing down the
 // stream - lets the server finish emitting any final transcript first.
 func (s *Stream) CloseSend() error {
+	s.closed.Store(true)
 	return s.stream.CloseSend()
 }
 
 // Close cancels the stream immediately (e.g. client disconnected).
 func (s *Stream) Close() {
+	s.closed.Store(true)
 	s.cancel()
 }
 

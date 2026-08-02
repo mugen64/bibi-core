@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -140,6 +141,12 @@ func (s *Session) handleAudioChunk(data []byte) {
 
 	err := s.sttStream.SendAudio(data, 16000, 1, 2, false)
 	if err != nil {
+		if errors.Is(err, sttclient.ErrStreamClosed) {
+			// Trailing audio chunk arrived just after end_utterance -
+			// harmless timing artifact, not worth surfacing to the user.
+			s.logger.Debug("dropped audio chunk after stream closed")
+			return
+		}
 		s.logger.Error("failed to send audio to stt", "error", err)
 		s.sendError("stt_send_failed", err.Error())
 	}
