@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,7 +13,9 @@ import (
 	"fmt"
 
 	"github.com/mugen64/bibi-core/internal/config"
+	"github.com/mugen64/bibi-core/internal/health"
 	llmclient "github.com/mugen64/bibi-core/internal/llm"
+	"github.com/mugen64/bibi-core/internal/proxy"
 	sttclient "github.com/mugen64/bibi-core/internal/stt"
 	ttsclient "github.com/mugen64/bibi-core/internal/tts"
 
@@ -50,9 +53,15 @@ func main() {
 	}
 	defer ttsClient.Close()
 
+	healthAggregator := health.NewAggregator(sttClient, llmClient, ttsClient)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/health", healthHandler(healthAggregator))
 	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
+
+	mux.Handle("/api/stt/", proxy.NewServiceProxy("stt", cfg.Services.STTHTTPAddr, "/api/stt"))
+	mux.Handle("/api/llm/", proxy.NewServiceProxy("llm", cfg.Services.LLMHTTPAddr, "/api/llm"))
+	mux.Handle("/api/tts/", proxy.NewServiceProxy("tts", cfg.Services.TTSHTTPAddr, "/api/tts"))
 
 	addr := cfg.Server.Host + ":" + itoa(cfg.Server.Port)
 	srv := &http.Server{
@@ -86,9 +95,18 @@ func main() {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+func healthHandler(agg *health.Aggregator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		report := agg.Check(r.Context())
+
+		w.Header().Set("Content-Type", "application/json")
+		if report.Status != "ok" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		json.NewEncoder(w).Encode(report)
+	}
 }
 
 func itoa(i int) string {

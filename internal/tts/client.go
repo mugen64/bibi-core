@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -101,4 +102,15 @@ func (s *Stream) recvPump() {
 
 func (s *Stream) Close() {
 	s.cancel()
+}
+
+func (c *Client) HealthCheck(ctx context.Context) (*ttspb.HealthResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	resp, err := c.client.HealthCheck(ctx, &ttspb.HealthRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("tts health check: %w", err)
+	}
+	return resp, nil
 }

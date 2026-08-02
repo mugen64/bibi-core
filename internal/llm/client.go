@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -100,4 +101,15 @@ func (s *Stream) recvPump() {
 // should stop generation early).
 func (s *Stream) Close() {
 	s.cancel()
+}
+
+func (c *Client) HealthCheck(ctx context.Context) (*llmpb.HealthResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	resp, err := c.client.HealthCheck(ctx, &llmpb.HealthRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("llm health check: %w", err)
+	}
+	return resp, nil
 }

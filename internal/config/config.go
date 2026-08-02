@@ -17,9 +17,12 @@ type ServerConfig struct {
 }
 
 type ServicesConfig struct {
-	STTAddr string `toml:"stt_addr"` // e.g. "localhost:50051" once gRPC is wired up
-	LLMAddr string `toml:"llm_addr"`
-	TTSAddr string `toml:"tts_addr"`
+	STTAddr     string `toml:"stt_addr"`      // gRPC
+	LLMAddr     string `toml:"llm_addr"`      // gRPC
+	TTSAddr     string `toml:"tts_addr"`      // gRPC
+	STTHTTPAddr string `toml:"stt_http_addr"` // HTTP - proxied
+	LLMHTTPAddr string `toml:"llm_http_addr"`
+	TTSHTTPAddr string `toml:"tts_http_addr"`
 }
 
 func Load(path string) (*Config, error) {
@@ -41,9 +44,13 @@ func defaults() *Config {
 	return &Config{
 		Server: ServerConfig{Host: "0.0.0.0", Port: 8080},
 		Services: ServicesConfig{
-			STTAddr: "localhost:5001",
-			LLMAddr: "localhost:5003",
-			TTSAddr: "localhost:5000",
+			STTAddr: "localhost:50051",
+			LLMAddr: "localhost:50053",
+			TTSAddr: "localhost:50050",
+
+			STTHTTPAddr: "localhost:5001",
+			LLMHTTPAddr: "localhost:5003",
+			TTSHTTPAddr: "localhost:5000",
 		},
 	}
 }

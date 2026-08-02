@@ -13,5 +13,5 @@ min_chunk_chars = 10
 [server]
 host = "0.0.0.0"
 port = 5003
-grpc_port = 50052
+grpc_port = 50053
 log_level = "debug"

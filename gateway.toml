@@ -4,5 +4,9 @@ port = 8080
 
 [services]
 stt_addr = "localhost:50051"
-llm_addr = "localhost:50052"
+llm_addr = "localhost:50053"
 tts_addr = "localhost:50050"
+
+stt_http_addr = "localhost:5001"
+llm_http_addr = "localhost:5003"
+tts_http_addr = "localhost:5000"

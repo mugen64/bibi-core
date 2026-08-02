@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -106,4 +107,18 @@ func (s *Stream) CloseSend() error {
 // Close cancels the stream immediately (e.g. client disconnected).
 func (s *Stream) Close() {
 	s.cancel()
+}
+
+// HealthCheck queries the underlying service's health. Takes its own
+// short timeout so a hung/unreachable service doesn't stall the
+// gateway's aggregated /health endpoint.
+func (c *Client) HealthCheck(ctx context.Context) (*sttpb.HealthResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	resp, err := c.client.HealthCheck(ctx, &sttpb.HealthRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("stt health check: %w", err)
+	}
+	return resp, nil
 }
