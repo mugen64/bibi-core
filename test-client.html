@@ -198,8 +198,14 @@
     </div>
 
     <div class="field">
-      <label>Playback format</label>
-      <div class="hint" id="formatStatus">not yet received</div>
+      <label>Playback sample rate (Hz)</label>
+      <input id="playbackRate" type="number" value="22050" />
+      <div class="hint">
+        ⚠ The gateway currently forwards raw TTS audio bytes without
+        attaching sample rate/channel metadata to the WebSocket frame
+        (see notes below). Set this to match your TTS voice's actual
+        output rate or playback will sound wrong (pitch/speed off).
+      </div>
     </div>
 
     <button id="clearBtn">Clear log</button>
@@ -226,6 +232,7 @@ const el = {
   connectBtn: document.getElementById('connectBtn'),
   talkBtn: document.getElementById('talkBtn'),
   wsUrl: document.getElementById('wsUrl'),
+  playbackRate: document.getElementById('playbackRate'),
   meterFill: document.getElementById('meterFill'),
   clearBtn: document.getElementById('clearBtn'),
 };
@@ -292,8 +299,6 @@ function connect() {
   };
 }
 
-let currentFormat = { sampleRate: 22050, channels: 1, sampleWidth: 2 }; // fallback until first audio_format arrives
-
 function handleControlMessage(msg) {
   switch (msg.type) {
     case 'partial_transcript':
@@ -304,15 +309,6 @@ function handleControlMessage(msg) {
       break;
     case 'llm_chunk':
       logLine('llm', msg.text, 'llm');
-      break;
-    case 'audio_format':
-      currentFormat = {
-        sampleRate: msg.sample_rate,
-        channels: msg.channels,
-        sampleWidth: msg.sample_width,
-      };
-      document.getElementById('formatStatus').textContent =
-        `${msg.sample_rate}Hz · ${msg.channels}ch · ${msg.sample_width * 8}-bit`;
       break;
     case 'interrupted':
       logLine('system', 'interrupted — stopping playback', 'system');
@@ -347,6 +343,8 @@ async function startRecording() {
   processorNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
 
   processorNode.onaudioprocess = (e) => {
+    if (!recording) return; // guards against a callback already queued
+                           // before disconnect() took effec
     const input = e.inputBuffer.getChannelData(0);
 
     // meter
@@ -413,13 +411,14 @@ function initPlaybackContext() {
 function handleAudioFrame(arrayBuffer) {
   if (!playbackCtx) initPlaybackContext();
 
+  const rate = parseInt(el.playbackRate.value, 10) || 22050;
   const pcm16 = new Int16Array(arrayBuffer);
   const float32 = new Float32Array(pcm16.length);
   for (let i = 0; i < pcm16.length; i++) {
     float32[i] = pcm16[i] / 0x8000;
   }
 
-  const audioBuffer = playbackCtx.createBuffer(1, float32.length, currentFormat.sampleRate);
+  const audioBuffer = playbackCtx.createBuffer(1, float32.length, rate);
   audioBuffer.getChannelData(0).set(float32);
 
   const source = playbackCtx.createBufferSource();
