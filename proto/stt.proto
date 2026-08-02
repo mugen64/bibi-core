@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package stt;
+
+option go_package = "github.com/mugen64/bibi-core/internal/stt/pb";
+
+service SpeechToText {
+  rpc StreamTranscribe(stream AudioChunkMsg) returns (stream TranscriptEvent);
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+message AudioChunkMsg {
+  bytes data = 1;
+  int32 sample_rate = 2;
+  int32 channels = 3;
+  int32 sample_width = 4;
+  bool end_of_utterance = 5; // client sets true on the final chunk of an utterance
+}
+
+message TranscriptSegmentMsg {
+  int32 start_ms = 1;
+  int32 end_ms = 2;
+  string text = 3;
+  optional float score = 4; // matches score: float | None
+}
+
+message TranscriptEvent {
+  enum EventType {
+    PARTIAL = 0;
+    FINAL = 1;
+    ERROR = 2;
+  }
+
+  EventType type = 1;
+  repeated TranscriptSegmentMsg segments = 2;
+  optional string lang = 3;
+
+  // populated only when type == ERROR
+  string error_code = 4;
+  string error_message = 5;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  string model_loaded = 2;
+}
