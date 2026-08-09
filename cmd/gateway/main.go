@@ -57,6 +57,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler(healthAggregator))
+	mux.HandleFunc("/", healthHandler(healthAggregator))
+
 	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
 
 	mux.Handle("/api/stt/", proxy.NewServiceProxy("stt", cfg.Services.STTHTTPAddr, "/api/stt"))

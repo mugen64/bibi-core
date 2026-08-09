@@ -20,7 +20,7 @@ async def serve():
         reflection.SERVICE_NAME,
     )
     reflection.enable_server_reflection(service_names, server)
-
+    logger.info("server: %s on port %d", config.server.host, config.server.grpc_port)
     addr = f"{config.server.host}:{config.server.grpc_port}"
     server.add_insecure_port(addr)
 
