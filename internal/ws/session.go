@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,7 +63,7 @@ type Session struct {
 	// currentTurn increments on every new utterance. Any in-flight work
 	// tagged with an older turn is stale and should be abandoned - this
 	// is the core mechanism barge-in relies on.
-	currentTurn uint64
+	currentTurn atomic.Uint64
 
 	// mu guards activeLLMStream/activeTTSStream, which are read/written
 	// from multiple goroutines (forwardTranscripts triggers new LLM
@@ -174,7 +176,7 @@ func (s *Session) handleControlMessage(data []byte) {
 // in flight (barge-in). interruptCurrentTurn is a no-op if nothing is
 // active, so this is safe to call unconditionally.
 func (s *Session) beginNewTurn() {
-	newTurn := atomic.AddUint64(&s.currentTurn, 1)
+	newTurn := s.currentTurn.Add(1)
 	s.interruptCurrentTurn(newTurn)
 	s.startStream()
 }
@@ -236,9 +238,10 @@ func (s *Session) startStream() {
 }
 
 func (s *Session) forwardTranscripts(stream *sttclient.Stream) {
-	turn := atomic.LoadUint64(&s.currentTurn)
+	turn := s.currentTurn.Load()
 
 	for event := range stream.Events {
+		s.logger.Info(fmt.Sprintf("current turn %d event %s", turn, event.Type))
 		switch event.Type {
 		case sttpb.TranscriptEvent_PARTIAL:
 			s.sendJSON(ControlMessage{Type: "partial_transcript", Text: joinSegments(event)})
@@ -256,7 +259,7 @@ func (s *Session) startLLMChat(prompt string, turn uint64) {
 	// If a barge-in happened between the transcript arriving and this
 	// call, currentTurn has already moved on - don't start a response
 	// for a turn that's already stale.
-	if atomic.LoadUint64(&s.currentTurn) != turn {
+	if s.currentTurn.Load() != turn {
 		return
 	}
 
@@ -275,10 +278,10 @@ func (s *Session) startLLMChat(prompt string, turn uint64) {
 }
 
 func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string, turn uint64) {
-	var fullResponse string
+	var fullResponse strings.Builder
 
 	for event := range stream.Events {
-		if atomic.LoadUint64(&s.currentTurn) != turn {
+		if s.currentTurn.Load() != turn {
 			// Barge-in happened mid-generation. The stream's context is
 			// already cancelled by interruptCurrentTurn - just stop
 			// consuming, don't queue any more TTS, don't touch history.
@@ -287,7 +290,7 @@ func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string, turn
 
 		switch event.Type {
 		case llmpb.ChatEvent_CHUNK:
-			fullResponse += event.Text
+			fullResponse.WriteString(event.Text)
 			s.sendJSON(ControlMessage{Type: "llm_chunk", Text: event.Text})
 
 			select {
@@ -303,7 +306,7 @@ func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string, turn
 
 			s.history = append(s.history,
 				llmclient.ChatMessage{Role: "user", Content: prompt},
-				llmclient.ChatMessage{Role: "assistant", Content: fullResponse},
+				llmclient.ChatMessage{Role: "assistant", Content: fullResponse.String()},
 			)
 
 		case llmpb.ChatEvent_ERROR:
@@ -316,12 +319,14 @@ func (s *Session) ttsWorker() {
 	for {
 		select {
 		case <-s.ctx.Done():
+			s.logger.Info("session cancelled")
 			return
 		case job, ok := <-s.ttsQueue:
 			if !ok {
+				s.logger.Info("session is closed exiting worker")
 				return
 			}
-			if atomic.LoadUint64(&s.currentTurn) != job.turn {
+			if s.currentTurn.Load() != job.turn {
 				continue // stale - dropped by interruptCurrentTurn's drain in the common case, but check again defensively
 			}
 			s.synthesizeAndSend(job)
@@ -344,7 +349,7 @@ func (s *Session) synthesizeAndSend(job ttsJob) {
 	formatSent := false
 
 	for chunk := range stream.Events {
-		if atomic.LoadUint64(&s.currentTurn) != job.turn {
+		if s.currentTurn.Load() != job.turn {
 			return
 		}
 
@@ -382,9 +387,22 @@ func (s *Session) endUtterance() {
 	if s.sttStream == nil {
 		return
 	}
+
+	// Explicitly signal end-of-utterance so the STT service flushes any
+	// buffered audio as a FINAL transcript. CloseSend() alone just ends
+	// the gRPC stream (Python sees a normal iterator exit) - it does
+	// NOT set end_of_utterance on the last-seen chunk, so FINAL would
+	// never fire without this.
+	if err := s.sttStream.SendAudio(nil, 16000, 1, 2, true); err != nil {
+		if !errors.Is(err, sttclient.ErrStreamClosed) {
+			s.logger.Warn("failed to send end_of_utterance marker", "error", err)
+		}
+	}
+
 	if err := s.sttStream.CloseSend(); err != nil {
 		s.logger.Warn("failed to close stt send side", "error", err)
 	}
+
 }
 
 func (s *Session) sendJSON(msg ControlMessage) {
@@ -405,11 +423,11 @@ func (s *Session) sendError(code, message string) {
 }
 
 func joinSegments(event *sttpb.TranscriptEvent) string {
-	text := ""
+	var text strings.Builder
 	for _, seg := range event.Segments {
-		text += seg.Text
+		text.WriteString(seg.Text)
 	}
-	return text
+	return text.String()
 }
 
 func (s *Session) writePump() {

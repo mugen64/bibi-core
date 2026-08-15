@@ -1,10 +1,13 @@
 import asyncio
+import logging
 
 import uvicorn
 
 from config import config
 from grpc_server import serve as serve_grpc
 from server import get_app
+
+logging.basicConfig(level=config.server.log_level)
 
 app = get_app()
 
