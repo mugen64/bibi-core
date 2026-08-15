@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BiBi — Your thoughts, distilled.</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#e3e3de",
+                    "inverse-surface": "#2f312e",
+                    "background": "#fafaf5",
+                    "secondary-fixed-dim": "#c8c7b8",
+                    "on-surface": "#1a1c19",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#5e5f52",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#636356",
+                    "surface-tint": "#5f5e5a",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#e4e2dd",
+                    "outline-variant": "#c7c7bf",
+                    "surface-container": "#eeeee9",
+                    "on-primary-fixed": "#1b1c19",
+                    "secondary-fixed": "#e4e3d3",
+                    "on-tertiary-container": "#babbb1",
+                    "inverse-primary": "#c8c6c1",
+                    "on-surface-variant": "#464741",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed-variant": "#47483c",
+                    "primary-fixed-dim": "#c8c6c1",
+                    "on-secondary-fixed": "#1b1c12",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#4a4a46",
+                    "primary": "#333430",
+                    "on-tertiary-fixed-variant": "#464740",
+                    "tertiary-fixed-dim": "#c7c7bd",
+                    "surface-dim": "#dadad5",
+                    "surface-bright": "#fafaf5",
+                    "on-tertiary-fixed": "#1b1c16",
+                    "on-background": "#1a1c19",
+                    "tertiary-fixed": "#e3e3d9",
+                    "surface-container-low": "#f4f4ef",
+                    "secondary-container": "#e1e0d0",
+                    "on-primary-fixed-variant": "#474743",
+                    "surface-container-high": "#e8e8e3",
+                    "surface-container-highest": "#e3e3de",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#bbb9b4",
+                    "inverse-on-surface": "#f1f1ec",
+                    "tertiary": "#33342d",
+                    "on-primary": "#ffffff",
+                    "outline": "#777771",
+                    "tertiary-container": "#494b43",
+                    "surface": "#fafaf5",
+                    "gorse-yellow": "#FFD700"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "margin-desktop": "80px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "margin-mobile": "16px",
+                    "unit": "4px",
+                    "xxl": "64px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "xl": "40px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Geist"],
+                    "body-md": ["Geist"],
+                    "body-lg": ["Geist"],
+                    "label-caps": ["Geist"],
+                    "headline-md": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-sm": ["Geist"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fafaf5;
+            color: #1a1c19;
+            font-family: 'Geist', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .gorse-dot {
+            background-color: #FFD700;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .letter-spacing-tight {
+            letter-spacing: -0.03em;
+        }
+    </style>
+</head>
+<body class="bg-background selection:bg-secondary-container">
+<!-- TopAppBar from JSON -->
+<header class="w-full sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
+<div class="flex justify-between items-center px-margin-mobile py-sm max-w-screen-xl mx-auto md:px-margin-desktop">
+<div class="flex items-center gap-md"><img alt="BiBi Logo" class="h-8 w-auto object-contain" src="assets/bibi-logo.jpg"/></div>
+<nav class="hidden md:flex gap-xl">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:opacity-80 transition-opacity" href="#features">FEATURES</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:opacity-80 transition-opacity" href="#philosophy">PHILOSOPHY</a>
+<a class="font-label-caps text-label-caps text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity" href="#">DEMO</a>
+</nav>
+<button class="material-symbols-outlined text-on-surface-variant md:hidden" data-icon="menu">menu</button>
+</div>
+</header>
+<main class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop">
+<!-- Hero Section -->
+<section class="min-h-[716px] flex flex-col justify-center items-start pt-xxl pb-xxl">
+<h2 class="font-headline-lg text-headline-lg md:text-[64px] md:leading-[1.1] text-primary letter-spacing-tight max-w-2xl mb-xl">
+                Your thoughts, distilled.
+            </h2>
+<div class="flex items-center gap-md group">
+<div class="w-3 h-3 rounded-full gorse-dot shadow-[0_0_12px_rgba(255,215,0,0.4)] animate-pulse"></div>
+<button class="px-lg py-sm border border-outline hover:bg-surface-container transition-colors font-label-caps text-label-caps">
+                    Live Demo
+                </button>
+</div>
+</section>
+<!-- Functional Divider -->
+<div class="w-full h-px bg-outline-variant mb-xxl"></div>
+<!-- Text-only Feature Sections -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-xxl pb-xxl" id="features">
+<div class="space-y-md">
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">01 / CAPTURE</p>
+<h3 class="font-headline-md text-headline-md text-primary">Uninterrupted Flow</h3>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-md">
+                    Minimalist interface designed to disappear. Record voice notes or text snippets without the friction of categories, tags, or folders. Focus on the raw thought.
+                </p>
+</div>
+<div class="space-y-md">
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">02 / ANALYSIS</p>
+<h3 class="font-headline-md text-headline-md text-primary">Neural Distillation</h3>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-md">
+                    Automated extraction of core concepts. BiBi identifies patterns across your entries, presenting them in a structured, quiet summary every evening.
+                </p>
+</div>
+</section>
+<!-- Functional Divider -->
+<div class="w-full h-px bg-outline-variant mb-xxl"></div>
+<!-- Philosophy Section -->
+<section class="pb-xxl" id="philosophy">
+<div class="max-w-3xl">
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest mb-md">PHILOSOPHY</p>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-lg">Honesty in design. Clarity in mind.</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+<div class="pt-md border-t border-outline-variant">
+<p class="font-label-caps text-label-caps text-primary mb-sm">NO NOISE</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Removing distractions to prioritize the mental canvas.</p>
+</div>
+<div class="pt-md border-t border-outline-variant">
+<p class="font-label-caps text-label-caps text-primary mb-sm">NO GADGETS</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Tools should be felt, not seen. Every pixel serves a purpose.</p>
+</div>
+<div class="pt-md border-t border-outline-variant">
+<p class="font-label-caps text-label-caps text-primary mb-sm">NO BIAS</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Your data remains yours. Distilled but never altered.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA Section -->
+<section class="py-xxl flex flex-col items-center text-center">
+<div class="mb-xl">
+<span class="material-symbols-outlined text-[48px] text-primary" data-icon="lightbulb">lightbulb</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-md">Ready to simplify?</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-xl max-w-sm">Join the waitlist for the early access distillation engine.</p>
+<div class="w-full max-w-sm flex flex-col gap-md">
+<input class="w-full px-lg py-md border border-outline bg-transparent focus:ring-0 focus:border-primary font-body-md transition-colors" placeholder="Email Address" type="email"/>
+<button class="w-full py-md bg-primary text-on-primary font-label-caps text-label-caps hover:opacity-90 transition-opacity">
+                    REQUEST ACCESS
+                </button>
+</div>
+</section>
+</main>
+<!-- BottomNavBar from JSON (Visible on Mobile) -->
+<footer class="md:hidden fixed bottom-0 w-full z-50 bg-surface dark:bg-surface-dim border-t border-outline-variant dark:border-outline">
+<div class="flex justify-around items-center px-margin-mobile py-md">
+<!-- Mic (Active for Landing/Action) -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed bg-surface-container-high dark:bg-surface-container-highest rounded-full p-2 transition-transform duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 transition-transform duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 transition-transform duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant p-2 transition-transform duration-150 active:scale-90">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</footer>
+<!-- Web Desktop Footer -->
+<footer class="hidden md:block py-xl border-t border-outline-variant mt-xxl">
+<div class="max-w-screen-xl mx-auto px-margin-desktop flex justify-between items-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant">© 2024 BIBI — DISTILLATION SYSTEMS</p>
+<div class="flex gap-lg">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">PRIVACY</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">TERMS</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">TWITTER</a>
+</div>
+</div>
+</footer>
+<script>
+        // Simple micro-interaction for the live demo button
+        const demoBtn = document.querySelector('button.border-outline');
+        const dot = document.querySelector('.gorse-dot');
+
+        if (demoBtn && dot) {
+            demoBtn.addEventListener('mouseenter', () => {
+                dot.style.transform = 'scale(1.5)';
+                dot.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            });
+            demoBtn.addEventListener('mouseleave', () => {
+                dot.style.transform = 'scale(1)';
+            });
+        }
+
+        // Intersection Observer for subtle reveal
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-4');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-700', 'ease-out', 'opacity-0', 'translate-y-4');
+            revealObserver.observe(section);
+        });
+    </script>
+</body></html>
