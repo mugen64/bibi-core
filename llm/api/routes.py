@@ -1,12 +1,13 @@
+import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, HTTPException
-import asyncio
 from fastapi.responses import StreamingResponse
 
-from api.models import ChatRequest, HealthResponse, ApiResponse
-from engine_manager import engine_manager
-import logging
+from api.models import ApiResponse, ChatRequest, HealthResponse
+from engine_manager import engine_manager, personality
+from exceptions import LLMServiceError, ModelNotFoundError, OllamaUnreachableError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -26,20 +27,20 @@ async def chat(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail={"code": "internal_error", "message": str(e)})
 
-    history = [m.model_dump() for m in request.conversation_history]
+
     response_chunks = []
 
     history = [m.model_dump() for m in request.conversation_history]
-    history.insert(0, {"role": "system", "content": "You are a helpful assistant. Answer as concisely as possible. If you don't know the answer, say 'I don't know'. Do not make up answers. If the user asks for a list, provide a numbered list. If the user asks for a code snippet, provide a code block. If the user asks for a table, provide a markdown table. If the user asks for a summary, provide a concise summary."})
+    history.insert(0, personality)
     try:
-        
+
         async for chunk in engine_manager.stream_chat_response(
             request.prompt, history
         ):
             response_chunks.append({"type": "chunk", "text": chunk})
 
         response_chunks.append({"type": "done"})
-    
+
         return ApiResponse(
             data=response_chunks,
             status=200,
@@ -85,6 +86,7 @@ async def chat_stream(request: ChatRequest):
 
     async def generate():
         history = [m.model_dump() for m in request.conversation_history]
+        history.insert(0, personality)
         try:
             async for chunk in engine_manager.stream_chat_response(
                 request.prompt, history

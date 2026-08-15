@@ -7,25 +7,31 @@ in chunker.py so this stays swappable if you ever add another backend.
 """
 
 from collections.abc import AsyncIterator
+from typing import Any
+from venv import logger
 
+import httpx
 import ollama
 
 from config import config
-
-from exceptions import ModelNotFoundError, OllamaUnreachableError, StreamInterruptedError
+from exceptions import (
+    ModelNotFoundError,
+    OllamaUnreachableError,
+    StreamInterruptedError,
+)
 
 
 class OllamaEngine:
     def __init__(self):
-        self.client = ollama.AsyncClient(host=config.ollama.host)
-        self.model = config.ollama.model
+        self.client :ollama.AsyncClient = ollama.AsyncClient(host=config.ollama.host)
+        self.model :str = config.ollama.model
 
-    async def models(self)-> [str]:
+    async def models(self) -> set[str]:
         try:
             models = await self.client.list()
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:
             raise OllamaUnreachableError() from e
-        
+
         return  {m["model"] for m in models.get("models", [])}
 
     async def ensure_model_available(self) -> None:
@@ -51,7 +57,7 @@ class OllamaEngine:
     async def stream_response(
         self,
         prompt: str,
-        conversation_history: list[dict] | None = None,
+        conversation_history: list[dict[str, Any]] | None = None,
     ) -> AsyncIterator[str]:
         """
         Yields raw text tokens as Ollama generates them.
@@ -94,7 +100,8 @@ class OllamaEngine:
 
     async def health_check(self) -> bool:
         try:
-            await self.client.list()
+            lls = await self.client.list()
+            logger.info(f"found {len(lls.models)}")
             return True
         except Exception:
             return False
