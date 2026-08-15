@@ -57,7 +57,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler(healthAggregator))
-	mux.HandleFunc("/", healthHandler(healthAggregator))
+	mux.HandleFunc("/", indexHandler())
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("site/assets"))))
 
 	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
 
@@ -94,6 +95,16 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("forced shutdown", "error", err)
+	}
+}
+
+func indexHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, "site/index.html")
 	}
 }
 
