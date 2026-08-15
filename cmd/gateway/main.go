@@ -58,6 +58,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler(healthAggregator))
 	mux.HandleFunc("/", indexHandler())
+	mux.HandleFunc("/assistant", assistantHandler())
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("site/assets"))))
 
 	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
@@ -105,6 +106,16 @@ func indexHandler() http.HandlerFunc {
 			return
 		}
 		http.ServeFile(w, r, "site/index.html")
+	}
+}
+
+func assistantHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/assistant" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, "site/assistant.html")
 	}
 }
 

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BiBi — Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#e3e3de",
+                    "inverse-surface": "#2f312e",
+                    "background": "#fafaf5",
+                    "secondary-fixed-dim": "#c8c7b8",
+                    "on-surface": "#1a1c19",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#5e5f52",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#636356",
+                    "surface-tint": "#5f5e5a",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#e4e2dd",
+                    "outline-variant": "#c7c7bf",
+                    "surface-container": "#eeeee9",
+                    "on-primary-fixed": "#1b1c19",
+                    "secondary-fixed": "#e4e3d3",
+                    "on-tertiary-container": "#babbb1",
+                    "inverse-primary": "#c8c6c1",
+                    "on-surface-variant": "#464741",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed-variant": "#47483c",
+                    "primary-fixed-dim": "#c8c6c1",
+                    "on-secondary-fixed": "#1b1c12",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#4a4a46",
+                    "primary": "#333430",
+                    "on-tertiary-fixed-variant": "#464740",
+                    "tertiary-fixed-dim": "#c7c7bd",
+                    "surface-dim": "#dadad5",
+                    "surface-bright": "#fafaf5",
+                    "on-tertiary-fixed": "#1b1c16",
+                    "on-background": "#1a1c19",
+                    "tertiary-fixed": "#e3e3d9",
+                    "surface-container-low": "#f4f4ef",
+                    "secondary-container": "#e1e0d0",
+                    "on-primary-fixed-variant": "#474743",
+                    "surface-container-high": "#e8e8e3",
+                    "surface-container-highest": "#e3e3de",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#bbb9b4",
+                    "inverse-on-surface": "#f1f1ec",
+                    "tertiary": "#33342d",
+                    "on-primary": "#ffffff",
+                    "outline": "#777771",
+                    "tertiary-container": "#494b43",
+                    "surface": "#fafaf5",
+                    "gorse-yellow": "#FFD700"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "margin-desktop": "80px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "margin-mobile": "16px",
+                    "unit": "4px",
+                    "xxl": "64px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "xl": "40px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Geist"],
+                    "body-md": ["Geist"],
+                    "body-lg": ["Geist"],
+                    "label-caps": ["Geist"],
+                    "headline-md": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-sm": ["Geist"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fafaf5;
+            color: #1a1c19;
+            font-family: 'Geist', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: currentColor;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 1s step-start infinite;
+        }
+        .typing-cursor.hidden { display: none; }
+        @keyframes blink { 50% { opacity: 0; } }
+        #talkBtn { touch-action: none; -webkit-tap-highlight-color: transparent; }
+        .bar { transition: height 0.1s ease-out, opacity 0.15s ease-out; }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-secondary-container h-screen flex flex-col overflow-hidden">
+
+<header class="w-full shrink-0 sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
+<div class="flex justify-between items-center px-margin-mobile py-sm max-w-screen-xl mx-auto md:px-margin-desktop">
+<a class="flex items-center gap-md" href="/"><img alt="BiBi Logo" class="h-8 w-auto object-contain" src="assets/bibi-logo.jpg"/></a>
+<div class="flex items-center gap-sm" id="statusCluster">
+<div class="w-2 h-2 rounded-full bg-outline-variant transition-colors" id="statusDot"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant tracking-widest" id="statusText">CONNECTING…</span>
+</div>
+</div>
+</header>
+
+<main class="flex-1 min-h-0 overflow-y-auto" id="conversation">
+<div class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop py-xl flex flex-col gap-lg" id="turns">
+<p class="font-body-md text-body-md text-on-surface-variant text-center" id="emptyHint">Hold the button below and say something.</p>
+</div>
+</main>
+
+<div class="hidden mx-margin-mobile md:mx-margin-desktop mb-sm px-lg py-sm bg-error-container text-on-error-container font-body-md text-body-md" id="errorBanner"></div>
+
+<footer class="shrink-0 border-t border-outline-variant dark:border-outline bg-surface dark:bg-surface-dim">
+<div class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop py-lg flex flex-col items-center gap-md">
+<div class="flex items-end justify-center gap-1 h-8" id="bars">
+<div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
+<div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
+<div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
+<div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
+<div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
+</div>
+<button class="w-24 h-24 md:w-28 md:h-28 rounded-full border border-outline flex items-center justify-center transition-transform select-none opacity-40 pointer-events-none" disabled="" id="talkBtn">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="mic" style="font-size:40px">mic</span>
+</button>
+<p class="font-label-sm text-label-sm text-on-surface-variant" id="talkHint">Connecting…</p>
+</div>
+</footer>
+
+<script>
+const SEND_SAMPLE_RATE = 16000; // must match what the gateway/stt expects
+
+const el = {
+  conversation: document.getElementById('conversation'),
+  turns: document.getElementById('turns'),
+  emptyHint: document.getElementById('emptyHint'),
+  errorBanner: document.getElementById('errorBanner'),
+  statusDot: document.getElementById('statusDot'),
+  statusText: document.getElementById('statusText'),
+  talkBtn: document.getElementById('talkBtn'),
+  talkHint: document.getElementById('talkHint'),
+  bars: Array.from(document.querySelectorAll('#bars .bar')),
+};
+
+// ---------- Connection ----------
+
+let ws = null;
+let reconnectTimer = null;
+let reconnectDelay = 1000;
+const RECONNECT_MAX_DELAY = 10000;
+
+function wsUrl() {
+  return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+}
+
+function connect() {
+  clearTimeout(reconnectTimer);
+  setStatus('connecting', 'CONNECTING…');
+
+  ws = new WebSocket(wsUrl());
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    reconnectDelay = 1000;
+    setStatus('connected', 'LIVE');
+    setTalkEnabled(true);
+    initPlaybackContext();
+  };
+
+  ws.onclose = () => {
+    setStatus('error', 'RECONNECTING…');
+    setTalkEnabled(false);
+    stopRecording();
+    resetInFlightState();
+    ws = null;
+    reconnectTimer = setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(RECONNECT_MAX_DELAY, reconnectDelay * 2);
+  };
+
+  ws.onerror = () => {
+    // onclose follows and drives the reconnect loop
+  };
+
+  ws.onmessage = (event) => {
+    if (typeof event.data === 'string') {
+      handleControlMessage(JSON.parse(event.data));
+    } else {
+      handleAudioFrame(event.data);
+    }
+  };
+}
+
+function setStatus(state, text) {
+  el.statusText.textContent = text;
+  el.statusDot.className = 'w-2 h-2 rounded-full transition-colors ' + (
+    state === 'connected' ? 'bg-gorse-yellow shadow-[0_0_12px_rgba(255,215,0,0.4)] animate-pulse' :
+    state === 'error' ? 'bg-error' :
+    'bg-outline-variant'
+  );
+}
+
+function setTalkEnabled(enabled) {
+  // A prior mic permission denial overrides connection state - the button
+  // stays disabled regardless, since re-prompting is pointless.
+  const active = enabled && !micPermissionDenied;
+  el.talkBtn.disabled = !active;
+  el.talkBtn.classList.toggle('opacity-40', !active);
+  el.talkBtn.classList.toggle('pointer-events-none', !active);
+  if (micPermissionDenied) el.talkHint.textContent = 'Microphone access blocked';
+  else if (!enabled) el.talkHint.textContent = 'Reconnecting…';
+  else if (!recording) el.talkHint.textContent = 'Hold to talk';
+}
+
+// A dropped connection shouldn't erase the visible transcript, but any
+// turn/utterance that was still in flight is now meaningless - discard
+// just that, not the committed history above it.
+function resetInFlightState() {
+  if (partialWrap) { partialWrap.remove(); partialWrap = null; partialBody = null; }
+  closeAssistantTurn(true);
+  stopPlayback();
+}
+
+// ---------- Control messages ----------
+
+function handleControlMessage(msg) {
+  switch (msg.type) {
+    case 'partial_transcript':
+      updatePartial(msg.text);
+      break;
+    case 'final_transcript':
+      closeAssistantTurn(false);
+      commitPartial(msg.text);
+      break;
+    case 'llm_chunk':
+      appendAssistantChunk(msg.text);
+      break;
+    case 'audio_format':
+      playbackFormat = {
+        sampleRate: msg.sample_rate || playbackFormat.sampleRate,
+        channels: msg.channels || playbackFormat.channels,
+        sampleWidth: msg.sample_width || playbackFormat.sampleWidth,
+      };
+      break;
+    case 'interrupted':
+      closeAssistantTurn(true);
+      stopPlayback();
+      break;
+    case 'error':
+      showError(msg.code, msg.message);
+      break;
+    default:
+      console.debug('unhandled control message', msg);
+  }
+}
+
+function showError(code, message) {
+  el.errorBanner.textContent = `[${code}] ${message}`;
+  el.errorBanner.classList.remove('hidden');
+  clearTimeout(showError._hideTimer);
+  showError._hideTimer = setTimeout(() => el.errorBanner.classList.add('hidden'), 6000);
+}
+
+// ---------- Conversation rendering ----------
+
+let turnCount = 0;
+let partialWrap = null;
+let partialBody = null;
+let assistantWrap = null;
+let assistantTextEl = null;
+let assistantCursorEl = null;
+let assistantOpen = false;
+let settleTimer = null;
+
+function hideEmptyHint() {
+  if (el.emptyHint) { el.emptyHint.remove(); el.emptyHint = null; }
+}
+
+function beginTurn() {
+  hideEmptyHint();
+  if (turnCount > 0) {
+    const hr = document.createElement('div');
+    hr.className = 'h-px bg-outline-variant';
+    el.turns.appendChild(hr);
+  }
+  turnCount++;
+}
+
+function scrollToBottom() {
+  el.conversation.scrollTop = el.conversation.scrollHeight;
+}
+
+function ensurePartial() {
+  if (partialWrap) return;
+  beginTurn();
+  partialWrap = document.createElement('div');
+  partialWrap.className = 'flex flex-col gap-xs';
+  partialWrap.innerHTML =
+    '<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">YOU</p>' +
+    '<p class="font-body-lg text-body-lg text-on-surface opacity-60 italic"></p>';
+  partialBody = partialWrap.querySelector('p:last-child');
+  el.turns.appendChild(partialWrap);
+  scrollToBottom();
+}
+
+function updatePartial(text) {
+  ensurePartial();
+  partialBody.textContent = text;
+  scrollToBottom();
+}
+
+function commitPartial(text) {
+  ensurePartial();
+  partialBody.textContent = text;
+  partialBody.classList.remove('opacity-60', 'italic');
+  partialWrap = null;
+  partialBody = null;
+  scrollToBottom();
+}
+
+function openAssistantTurn() {
+  beginTurn();
+  assistantWrap = document.createElement('div');
+  assistantWrap.className = 'flex flex-col gap-xs';
+  assistantWrap.innerHTML =
+    '<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">BIBI</p>' +
+    '<p class="font-body-lg text-body-lg text-on-surface"><span class="assistant-text"></span><span class="typing-cursor"></span></p>';
+  assistantTextEl = assistantWrap.querySelector('.assistant-text');
+  assistantCursorEl = assistantWrap.querySelector('.typing-cursor');
+  el.turns.appendChild(assistantWrap);
+  assistantOpen = true;
+}
+
+function appendAssistantChunk(text) {
+  if (!assistantOpen) openAssistantTurn();
+  assistantTextEl.textContent += (assistantTextEl.textContent ? ' ' : '') + text;
+  assistantCursorEl.classList.remove('hidden');
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => assistantCursorEl && assistantCursorEl.classList.add('hidden'), 4000);
+  scrollToBottom();
+}
+
+function closeAssistantTurn(markStopped) {
+  if (!assistantOpen) return;
+  clearTimeout(settleTimer);
+  if (assistantCursorEl) assistantCursorEl.classList.add('hidden');
+  if (markStopped && assistantWrap) {
+    const marker = document.createElement('span');
+    marker.className = 'block font-label-sm text-label-sm text-on-surface-variant mt-xs';
+    marker.textContent = '— stopped —';
+    assistantWrap.appendChild(marker);
+  }
+  assistantWrap = null;
+  assistantTextEl = null;
+  assistantCursorEl = null;
+  assistantOpen = false;
+}
+
+// ---------- Mic capture: resample to 16kHz mono 16-bit PCM ----------
+// Uses ScriptProcessorNode for simplicity/broad support. It's deprecated
+// in favor of AudioWorklet - fine for a demo, worth migrating to
+// AudioWorklet if this becomes a real product client.
+
+let audioCtx = null;
+let micStream = null;
+let sourceNode = null;
+let processorNode = null;
+let recording = false;
+let lastRms = 0;
+let micPermissionDenied = false;
+
+async function startRecording() {
+  if (recording || micPermissionDenied || !ws || ws.readyState !== WebSocket.OPEN) return;
+  recording = true;
+  el.talkBtn.classList.add('bg-surface-container-high', 'border-primary');
+  el.talkHint.textContent = 'Listening… release to send';
+  ws.send(JSON.stringify({ type: 'start' }));
+
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    recording = false;
+    el.talkBtn.classList.remove('bg-surface-container-high', 'border-primary');
+    // We already told the gateway a turn started - it has no audio coming
+    // and no other way to find out, so tell it to close the STT stream
+    // rather than leaving it open indefinitely.
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'end_utterance' }));
+    }
+    // Browsers don't re-prompt after a denial - retrying just fails again
+    // silently, so stop offering it instead of leaving a dead button.
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      micPermissionDenied = true;
+      el.talkBtn.classList.add('opacity-40', 'pointer-events-none');
+      el.talkHint.textContent = 'Microphone access blocked';
+      showError('mic_denied', 'Microphone access was denied. Enable it in your browser/site settings to talk to BiBi.');
+    } else {
+      el.talkHint.textContent = 'Microphone unavailable';
+      showError('mic_unavailable', 'Could not access the microphone.');
+    }
+    return;
+  }
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sourceNode = audioCtx.createMediaStreamSource(micStream);
+
+  const bufferSize = 4096;
+  processorNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+  processorNode.onaudioprocess = (e) => {
+    if (!recording) return; // guards against a callback already queued before teardown
+    const input = e.inputBuffer.getChannelData(0);
+
+    let sum = 0;
+    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    lastRms = Math.sqrt(sum / input.length);
+
+    const resampled = downsampleTo16k(input, audioCtx.sampleRate, SEND_SAMPLE_RATE);
+    const pcm16 = floatTo16BitPCM(resampled);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(pcm16.buffer);
+    }
+  };
+
+  sourceNode.connect(processorNode);
+  processorNode.connect(audioCtx.destination);
+  ensureRafLoop();
+}
+
+function stopRecording() {
+  if (!recording) return;
+  recording = false;
+  lastRms = 0;
+  el.talkBtn.classList.remove('bg-surface-container-high', 'border-primary');
+  el.talkBtn.style.boxShadow = '';
+  el.talkBtn.style.transform = '';
+  el.talkHint.textContent = ws && ws.readyState === WebSocket.OPEN ? 'Hold to talk' : 'Reconnecting…';
+
+  if (processorNode) { processorNode.disconnect(); processorNode = null; }
+  if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'end_utterance' }));
+  }
+}
+
+function downsampleTo16k(buffer, fromRate, toRate) {
+  if (fromRate === toRate) return buffer;
+  const ratio = fromRate / toRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    result[i] = buffer[Math.floor(i * ratio)];
+  }
+  return result;
+}
+
+function floatTo16BitPCM(input) {
+  const output = new Int16Array(input.length);
+  for (let i = 0; i < input.length; i++) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return output;
+}
+
+// ---------- Playback: queue TTS audio chunks in order ----------
+
+let playbackCtx = null;
+let playbackQueueTime = 0;
+let analyser = null;
+let freqData = null;
+let scheduledSourceCount = 0;
+let isSpeaking = false;
+let activeSources = [];
+let playbackFormat = { sampleRate: 22050, channels: 1, sampleWidth: 2 };
+
+function initPlaybackContext() {
+  if (playbackCtx) return;
+  playbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playbackQueueTime = playbackCtx.currentTime;
+
+  analyser = playbackCtx.createAnalyser();
+  analyser.fftSize = 64;
+  analyser.smoothingTimeConstant = 0.7;
+  analyser.connect(playbackCtx.destination); // connected once, ever
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+}
+
+function handleAudioFrame(arrayBuffer) {
+  if (!playbackCtx) initPlaybackContext();
+
+  const pcm16 = new Int16Array(arrayBuffer);
+  const float32 = new Float32Array(pcm16.length);
+  for (let i = 0; i < pcm16.length; i++) {
+    float32[i] = pcm16[i] / 0x8000;
+  }
+
+  const audioBuffer = playbackCtx.createBuffer(playbackFormat.channels || 1, float32.length, playbackFormat.sampleRate || 22050);
+  audioBuffer.getChannelData(0).set(float32);
+
+  const source = playbackCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(analyser); // tap for the visualization; analyser->destination carries the sound
+
+  // Schedule strictly after whatever's already queued, so chunks play
+  // back-to-back in arrival order rather than overlapping.
+  const startAt = Math.max(playbackQueueTime, playbackCtx.currentTime);
+  source.start(startAt);
+  playbackQueueTime = startAt + audioBuffer.duration;
+
+  scheduledSourceCount++;
+  if (scheduledSourceCount === 1) setSpeaking(true);
+  activeSources.push(source);
+  source.onended = () => {
+    activeSources = activeSources.filter((s) => s !== source);
+    scheduledSourceCount = Math.max(0, scheduledSourceCount - 1);
+    if (scheduledSourceCount === 0) setSpeaking(false);
+  };
+
+  ensureRafLoop();
+}
+
+function stopPlayback() {
+  activeSources.forEach((s) => { s.onended = null; try { s.stop(); } catch (e) {} });
+  activeSources = [];
+  scheduledSourceCount = 0;
+  setSpeaking(false);
+  if (playbackCtx) playbackQueueTime = playbackCtx.currentTime;
+}
+
+function setSpeaking(speaking) {
+  isSpeaking = speaking;
+  if (!speaking) restBars();
+  else ensureRafLoop();
+}
+
+// ---------- Visualization: shared rAF loop for speaking bars + mic glow ----------
+
+let rafId = null;
+
+function ensureRafLoop() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(tick);
+}
+
+function tick() {
+  if (isSpeaking && analyser) {
+    analyser.getByteFrequencyData(freqData);
+    updateBars(freqData);
+  }
+  if (recording) {
+    applyMicGlow(lastRms);
+  }
+  if (isSpeaking || recording) {
+    rafId = requestAnimationFrame(tick);
+  } else {
+    rafId = null;
+  }
+}
+
+function updateBars(data) {
+  const binsPerBar = Math.floor(data.length / el.bars.length) || 1;
+  for (let i = 0; i < el.bars.length; i++) {
+    let sum = 0;
+    const start = i * binsPerBar;
+    for (let j = start; j < start + binsPerBar; j++) sum += data[j] || 0;
+    const avg = sum / binsPerBar;
+    const bar = el.bars[i];
+    bar.style.height = (4 + (avg / 255) * 28) + 'px';
+    bar.classList.remove('opacity-30');
+    bar.classList.add('opacity-100');
+  }
+}
+
+function restBars() {
+  el.bars.forEach((bar) => {
+    bar.style.height = '4px';
+    bar.classList.remove('opacity-100');
+    bar.classList.add('opacity-30');
+  });
+}
+
+function applyMicGlow(rms) {
+  const intensity = Math.min(0.6, rms * 2);
+  const blur = 8 + rms * 160;
+  el.talkBtn.style.boxShadow = `0 0 ${blur}px rgba(255,215,0,${intensity})`;
+  el.talkBtn.style.transform = `scale(${1 + Math.min(0.08, rms * 0.3)})`;
+}
+
+// ---------- Controls ----------
+
+el.talkBtn.addEventListener('mousedown', startRecording);
+el.talkBtn.addEventListener('mouseup', stopRecording);
+el.talkBtn.addEventListener('mouseleave', () => { if (recording) stopRecording(); });
+
+el.talkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); }, { passive: false });
+el.talkBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); }, { passive: false });
+el.talkBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopRecording(); }, { passive: false });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !e.repeat && !el.talkBtn.disabled) {
+    e.preventDefault();
+    startRecording();
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    stopRecording();
+  }
+});
+
+setTalkEnabled(false);
+connect();
+</script>
+
+</body></html>
