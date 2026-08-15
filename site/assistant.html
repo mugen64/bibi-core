@@ -127,9 +127,9 @@
         .bar { transition: height 0.1s ease-out, opacity 0.15s ease-out; }
     </style>
 </head>
-<body class="bg-background text-on-background selection:bg-secondary-container h-screen flex flex-col overflow-hidden">
+<body class="bg-background text-on-background selection:bg-secondary-container">
 
-<header class="w-full shrink-0 sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
+<header class="w-full sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
 <div class="flex justify-between items-center px-margin-mobile py-sm max-w-screen-xl mx-auto md:px-margin-desktop">
 <a class="flex items-center gap-md" href="/"><img alt="BiBi Logo" class="h-8 w-auto object-contain" src="assets/bibi-logo.jpg"/></a>
 <div class="flex items-center gap-sm" id="statusCluster">
@@ -139,16 +139,24 @@
 </div>
 </header>
 
-<main class="flex-1 min-h-0 overflow-y-auto" id="conversation">
-<div class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop py-xl flex flex-col gap-lg" id="turns">
+<main class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop">
+
+<!-- Demo: phone-sized frame, centered mid-page -->
+<section class="flex flex-col items-center pt-xxl pb-xxl">
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest mb-md">LIVE DEMO</p>
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-xl text-center">Talk to BiBi</h2>
+
+<div class="w-full max-w-[380px] h-[680px] flex flex-col border border-outline rounded-xl overflow-hidden bg-surface shadow-lg">
+<div class="shrink-0 overflow-y-auto flex-1 min-h-0" id="conversation">
+<div class="px-md py-lg flex flex-col gap-lg" id="turns">
 <p class="font-body-md text-body-md text-on-surface-variant text-center" id="emptyHint">Hold the button below and say something.</p>
 </div>
-</main>
+</div>
 
-<div class="hidden mx-margin-mobile md:mx-margin-desktop mb-sm px-lg py-sm bg-error-container text-on-error-container font-body-md text-body-md" id="errorBanner"></div>
+<div class="hidden mx-md mb-sm px-md py-sm bg-error-container text-on-error-container font-body-md text-body-md" id="errorBanner"></div>
 
-<footer class="shrink-0 border-t border-outline-variant dark:border-outline bg-surface dark:bg-surface-dim">
-<div class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop py-lg flex flex-col items-center gap-md">
+<div class="shrink-0 border-t border-outline-variant dark:border-outline bg-surface dark:bg-surface-dim">
+<div class="px-md py-lg flex flex-col items-center gap-md">
 <div class="flex items-end justify-center gap-1 h-8" id="bars">
 <div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
 <div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
@@ -156,10 +164,44 @@
 <div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
 <div class="bar w-1.5 rounded-[2px] bg-gorse-yellow opacity-30" style="height:4px"></div>
 </div>
-<button class="w-24 h-24 md:w-28 md:h-28 rounded-full border border-outline flex items-center justify-center transition-transform select-none opacity-40 pointer-events-none" disabled="" id="talkBtn">
-<span class="material-symbols-outlined text-on-surface-variant" data-icon="mic" style="font-size:40px">mic</span>
+<button class="w-20 h-20 rounded-full border border-outline flex items-center justify-center transition-transform select-none opacity-40 pointer-events-none" disabled="" id="talkBtn">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="mic" style="font-size:36px">mic</span>
 </button>
 <p class="font-label-sm text-label-sm text-on-surface-variant" id="talkHint">Connecting…</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Functional Divider -->
+<div class="w-full h-px bg-outline-variant mb-xxl"></div>
+
+<!-- Request Access CTA -->
+<section class="py-xxl flex flex-col items-center text-center">
+<div class="mb-xl">
+<span class="material-symbols-outlined text-[48px] text-primary" data-icon="lightbulb">lightbulb</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-md">Ready to simplify?</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-xl max-w-sm">Join the waitlist for the early access distillation engine.</p>
+<div class="w-full max-w-sm flex flex-col gap-md">
+<input class="w-full px-lg py-md border border-outline bg-transparent focus:ring-0 focus:border-primary font-body-md transition-colors" placeholder="Email Address" type="email"/>
+<button class="w-full py-md bg-primary text-on-primary font-label-caps text-label-caps hover:opacity-90 transition-opacity">
+                    REQUEST ACCESS
+                </button>
+</div>
+</section>
+
+</main>
+
+<!-- Web Desktop Footer -->
+<footer class="py-xl border-t border-outline-variant">
+<div class="max-w-screen-xl mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row gap-md justify-between items-center text-center md:text-left">
+<p class="font-label-sm text-label-sm text-on-surface-variant">© 2024 BIBI — DISTILLATION SYSTEMS</p>
+<div class="flex gap-lg">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">PRIVACY</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">TERMS</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary" href="#">TWITTER</a>
+</div>
 </div>
 </footer>
 
@@ -406,6 +448,25 @@ let micPermissionDenied = false;
 
 async function startRecording() {
   if (recording || micPermissionDenied || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  // getUserMedia only exists in a secure context (HTTPS or localhost).
+  // Over plain HTTP on any other host, navigator.mediaDevices is
+  // undefined and the call below would throw before ever prompting -
+  // catch that up front so we can say why, instead of a generic
+  // "Microphone unavailable" that leaves users guessing.
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    micPermissionDenied = true;
+    el.talkBtn.classList.add('opacity-40', 'pointer-events-none');
+    const reason = window.isSecureContext
+      ? 'Microphone not supported in this browser'
+      : 'Microphone needs HTTPS';
+    el.talkHint.textContent = reason;
+    showError('mic_insecure_context', window.isSecureContext
+      ? 'This browser does not support microphone capture.'
+      : 'Microphone access requires HTTPS (or localhost). Load this page over HTTPS to talk to BiBi.');
+    return;
+  }
+
   recording = true;
   el.talkBtn.classList.add('bg-surface-container-high', 'border-primary');
   el.talkHint.textContent = 'Listening… release to send';
