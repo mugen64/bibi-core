@@ -1,7 +1,9 @@
-import wave
 from pathlib import Path
+
 from piper import PiperVoice
+
 from engines.models import AudioChunk
+from text_utils import strip_markdown
 
 
 class Piper:
@@ -17,6 +19,7 @@ class Piper:
 
 
     def stream(self, text):
+        text = strip_markdown(text)
         for chunk in self.voice.synthesize(text):
             yield AudioChunk(
                 data=chunk.audio_int16_bytes,

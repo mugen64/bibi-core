@@ -52,7 +52,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail={"type": "error", "code": e.code, "message": str(e)})
     except asyncio.CancelledError:
         logger.info("Client disconnected mid-stream, stopping generation")
-        raise HTTPException(status_code=400, detail={"type": "error", "code": e.code, "message": str(e)})
+        raise HTTPException(status_code=400, detail={"type": "error", "code": "stream_cancelled", "message": "stream cancelled"})
     except Exception as e:
         logger.exception("Unexpected error during generation")
         raise HTTPException(status_code=500, detail={"type":"internal_error", "message": str(e)})

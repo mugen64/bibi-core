@@ -291,7 +291,6 @@ func (s *Session) forwardLLMEvents(stream *llmclient.Stream, prompt string, turn
 		switch event.Type {
 		case llmpb.ChatEvent_CHUNK:
 			fullResponse.WriteString(event.Text)
-			s.sendJSON(ControlMessage{Type: "llm_chunk", Text: event.Text})
 
 			select {
 			case s.ttsQueue <- ttsJob{turn: turn, text: event.Text}:
@@ -353,13 +352,16 @@ func (s *Session) synthesizeAndSend(job ttsJob) {
 			return
 		}
 
-		// Announce format before the first chunk of this sentence's
-		// audio, so the client knows how to interpret the raw PCM
-		// bytes that follow. Sent per-sentence rather than once per
+		// Send this sentence's text together with the format
+		// announcement, right before its first chunk of audio, so the
+		// client shows text roughly in step with what's about to be
+		// spoken instead of racing far ahead of the (comparatively
+		// slow) TTS pipeline. Sent per-sentence rather than once per
 		// session in case different sentences ever use different
-		// voices - cheap (one small JSON message) relative to the
-		// audio itself.
+		// voices - cheap (small JSON messages) relative to the audio
+		// itself.
 		if !formatSent {
+			s.sendJSON(ControlMessage{Type: "llm_chunk", Text: job.text})
 			s.sendJSON(ControlMessage{
 				Type:        "audio_format",
 				SampleRate:  chunk.SampleRate,
