@@ -10,3 +10,22 @@ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 go install github.com/air-verse/air@latest
 """
+
+[tasks.gateway]
+description = "Run the gateway with live reload"
+run = "air -c .air.toml"
+
+[tasks.stt]
+description = "Run the STT service"
+dir = "stt"
+run = "uv sync && uv run python main.py"
+
+[tasks.llm]
+description = "Run the LLM service"
+dir = "llm"
+run = "uv sync && uv run python main.py"
+
+[tasks.tts]
+description = "Run the TTS service"
+dir = "tts"
+run = "uv sync && uv run python main.py"
