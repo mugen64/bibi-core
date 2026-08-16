@@ -120,10 +120,10 @@ class WhisperCppEngine(STTEngine):
             )
 
 
-        # if chunk.sample_rate != 16000:
-        #    raise ValueError(
-        #        "Whisper requires 16000Hz audio"
-        #    )
+        if chunk.sample_rate != 16000:
+            raise ValueError(
+                "Whisper requires 16000Hz audio"
+            )
 
         if chunk.channels != 1:
             raise ValueError(
