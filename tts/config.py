@@ -1,33 +1,52 @@
-from pathlib import Path
 import tomllib
-
+from dataclasses import dataclass
+from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 
 
-def load_config():
-    config_path = BASE_DIR / "config.toml"
+@dataclass
+class VoicesConfig:
+    directory: Path = Path("./voices")
+    default: str = "en_US-lessac-high.onnx"
+    max_loaded: int = 3
 
-    with open(config_path, "rb") as file:
-        return tomllib.load(file)
-
-
-config = load_config()
-
-
-# Voice configuration
-voice_directory = config["voices"]["directory"]
-if voice_directory.startswith("./"):
-    VOICE_DIR = BASE_DIR / voice_directory
-else:
-    VOICE_DIR = Path(voice_directory)
-
-DEFAULT_VOICE = config["voices"]["default"]
+    def __post_init__(self):
+        directory = str(self.directory)
+        if directory.startswith("./"):
+            self.directory = BASE_DIR / directory
+        else:
+            self.directory = Path(directory)
 
 
-# Piper configuration
-SAMPLE_RATE = config["piper"]["sample_rate"]
-MAX_LOADED_VOICES = config["voices"]["max_loaded"]
-HOST=config["server"]["host"]
-HTTP_PORT=config["server"]["port"]
-GRPC_PORT=config["server"]["grpc_port"]
+@dataclass
+class PiperConfig:
+    sample_rate: int = 22050
+
+
+@dataclass
+class ServerConfig:
+    host: str = "0.0.0.0"
+    port: int = 5000
+    grpc_port: int = 50050  # matches gateway.toml's tts_addr
+
+
+@dataclass
+class Config:
+    voices: VoicesConfig
+    piper: PiperConfig
+    server: ServerConfig
+
+    @classmethod
+    def load(cls, path: str | Path = "config.toml") -> "Config":
+        path = Path(path)
+        data = tomllib.loads(path.read_text()) if path.exists() else {}
+
+        return cls(
+            voices=VoicesConfig(**data.get("voices", {})),
+            piper=PiperConfig(**data.get("piper", {})),
+            server=ServerConfig(**data.get("server", {})),
+        )
+
+
+config = Config.load()

@@ -3,7 +3,7 @@ import logging
 
 import uvicorn
 
-from config import MODEL_DIR, DEFAULT_MODEL, HOST, HTTP_PORT, GRPC_PORT
+from config import config
 from engine_manager import stt_manager
 from grpc_server import serve as serve_grpc
 from server import get_app
@@ -17,8 +17,8 @@ app = get_app()
 async def serve_http():
     uv_config = uvicorn.Config(
         app,
-        host=HOST,
-        port=HTTP_PORT,
+        host=config.server.host,
+        port=config.server.port,
         log_level="info",
     )
     server = uvicorn.Server(uv_config)
@@ -30,7 +30,7 @@ async def main():
     # cost on the first real request (HTTP, WS, or gRPC - whichever
     # arrives first). get_engine() is blocking, but this runs once
     # before either server starts accepting traffic, so it's fine here.
-    logger.info("loading default model '%s'...", DEFAULT_MODEL)
+    logger.info("loading default model '%s'...", config.models.default)
     stt_manager.get_engine()
     logger.info("model loaded, starting servers")
 

@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse, Response
 
 from api.models import ApiResponse,transcript_to_response
 from engine_manager import stt_manager
-from config import DEFAULT_MODEL
+from config import config
 from engines.audio_sources import WavFileAudioSource, WebSocketAudioSource
 from audio_utils import calculate_duration
 
@@ -31,7 +31,7 @@ async def transcribe(
             detail="Only wav files are supported",
         )
     if model is None:
-        model = DEFAULT_MODEL
+        model = config.models.default
 
     temp_file = f"/tmp/{file.filename}"
     with open(temp_file, "wb") as f:

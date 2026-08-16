@@ -1,3 +1,8 @@
 [models]
 directory = "/home/kyosimba/whisper.cpp/models"
 default = "ggml-base"
+
+[server]
+host = "0.0.0.0"
+port = 5001
+grpc_port = 50051

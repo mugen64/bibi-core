@@ -3,13 +3,11 @@ import logging
 
 import grpc
 
-import stt_pb2_grpc
-from config import HOST, GRPC_PORT
-from grpc_servicer import SpeechToTextServicer
-from grpc_reflection.v1alpha import reflection
 import stt_pb2
 import stt_pb2_grpc
-from config import HOST, GRPC_PORT
+from config import config
+from grpc_servicer import SpeechToTextServicer
+from grpc_reflection.v1alpha import reflection
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +28,7 @@ async def serve():
     )
     reflection.enable_server_reflection(service_names, server)
 
-    addr = f"{HOST}:{GRPC_PORT}"
+    addr = f"{config.server.host}:{config.server.grpc_port}"
     server.add_insecure_port(addr)
 
     logger.info("stt grpc server listening on %s", addr)

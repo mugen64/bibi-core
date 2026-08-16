@@ -1,14 +1,14 @@
 from pathlib import Path
-from config import MODEL_DIR, DEFAULT_MODEL
+from config import config
 from engines.base import STTEngine
 from engines.whispercpp_engine import WhisperCppEngine
 
 
 class STTManager:
     def __init__(self):
-        self._model_dir = MODEL_DIR
+        self._model_dir = config.models.directory
         self._engines: dict[str, STTEngine] = {}
-        self._default_model = DEFAULT_MODEL
+        self._default_model = config.models.default
 
     def list_models(self) -> list[str]:
         """

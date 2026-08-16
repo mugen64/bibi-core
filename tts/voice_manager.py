@@ -3,14 +3,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from threading import Lock
 
-from config import VOICE_DIR, DEFAULT_VOICE, MAX_LOADED_VOICES
+from config import config
 from engines.piper_engine import Piper
 
 
 class VoiceManager:
-    def __init__(self, max_loaded_voices: int = MAX_LOADED_VOICES):
-        self.voice_dir = VOICE_DIR
-        self.default_voice = DEFAULT_VOICE
+    def __init__(self, max_loaded_voices: int = config.voices.max_loaded):
+        self.voice_dir: Path = config.voices.directory
+        self.default_voice = config.voices.default
         self.max_loaded_voices = max_loaded_voices
 
         self._engines: OrderedDict[str, Piper] = OrderedDict()

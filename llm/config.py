@@ -1,13 +1,3 @@
-"""
-Config loader for the llm service.
-Mirrors the config.py + config.toml pattern used in stt/ and tts/.
-
-ASSUMPTION: I don't have your actual stt/config.py or tts/config.py in
-this environment, so this is a reasonable inference from the file names
-in your tree. Replace/adjust to match your real pattern (e.g. if you're
-using pydantic-settings, dataclasses, or plain dict loading elsewhere).
-"""
-
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path

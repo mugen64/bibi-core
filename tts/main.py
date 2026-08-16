@@ -3,7 +3,7 @@ import logging
 
 import uvicorn
 
-from config import HOST, HTTP_PORT
+from config import config
 from grpc_server import serve as serve_grpc
 from server import get_app
 
@@ -13,7 +13,7 @@ app = get_app()
 
 
 async def serve_http():
-    uv_config = uvicorn.Config(app, host=HOST, port=HTTP_PORT, log_level="info")
+    uv_config = uvicorn.Config(app, host=config.server.host, port=config.server.port, log_level="info")
     server = uvicorn.Server(uv_config)
     await server.serve()
 

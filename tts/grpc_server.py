@@ -5,7 +5,7 @@ from grpc_reflection.v1alpha import reflection
 
 import tts_pb2
 import tts_pb2_grpc
-from config import HOST, GRPC_PORT
+from config import config
 from grpc_servicer import TextToSpeechServicer
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ async def serve():
     )
     reflection.enable_server_reflection(service_names, server)
 
-    addr = f"{HOST}:{GRPC_PORT}"
+    addr = f"{config.server.host}:{config.server.grpc_port}"
     server.add_insecure_port(addr)
     logger.info("tts grpc server listening on %s", addr)
     await server.start()
