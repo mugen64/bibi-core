@@ -10,7 +10,7 @@ import grpc
 
 import llm_pb2
 import llm_pb2_grpc
-from engine_manager import engine_manager
+from engine_manager import engine_manager, personality
 from exceptions import LLMServiceError, ModelNotFoundError, OllamaUnreachableError
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class LLMChatServicer(llm_pb2_grpc.LLMChatServicer):
             {"role": m.role, "content": m.content}
             for m in request.conversation_history
         ]
+        history.insert(0, personality)
 
         try:
             async for chunk in engine_manager.stream_chat_response(
