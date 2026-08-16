@@ -7,6 +7,8 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script id="tailwind-config">
       tailwind.config = {
         darkMode: "class",
@@ -123,6 +125,20 @@
         }
         .typing-cursor.hidden { display: none; }
         @keyframes blink { 50% { opacity: 0; } }
+        .assistant-text p { margin: 0 0 0.5em; }
+        .assistant-text p:last-child { margin-bottom: 0; }
+        .assistant-text ul, .assistant-text ol { margin: 0.25em 0 0.5em 1.25em; }
+        .assistant-text ul { list-style: disc; }
+        .assistant-text ol { list-style: decimal; }
+        .assistant-text code { background: rgba(0,0,0,0.06); padding: 0.1em 0.35em; border-radius: 0.25em; font-size: 0.9em; }
+        .assistant-text pre { background: rgba(0,0,0,0.06); padding: 0.75em; border-radius: 0.375em; overflow-x: auto; margin: 0.5em 0; }
+        .assistant-text pre code { background: none; padding: 0; }
+        .assistant-text a { text-decoration: underline; }
+        .assistant-text strong { font-weight: 600; }
+        .assistant-text blockquote { border-left: 2px solid currentColor; opacity: 0.8; padding-left: 0.75em; margin: 0.5em 0; }
+        .assistant-sentence { padding: 0.05em 0.4em; margin: 0 -0.4em; border-radius: 0.25em; transition: background-color 0.25s ease, box-shadow 0.25s ease; }
+        .assistant-sentence.speaking { background-color: rgba(255, 215, 0, 0.16); box-shadow: inset 2px 0 0 0 #FFD700; }
+        .assistant-sentence p { margin: 0; }
         #talkBtn { touch-action: none; -webkit-tap-highlight-color: transparent; }
         .bar { transition: height 0.1s ease-out, opacity 0.15s ease-out; }
     </style>
@@ -344,7 +360,6 @@ let turnCount = 0;
 let partialWrap = null;
 let partialBody = null;
 let assistantWrap = null;
-let assistantTextEl = null;
 let assistantCursorEl = null;
 let assistantOpen = false;
 let settleTimer = null;
@@ -395,14 +410,46 @@ function commitPartial(text) {
   scrollToBottom();
 }
 
+let assistantSentencesEl = null;
+
+// The gateway sends one 'llm_chunk' per sentence, immediately followed by
+// the 'audio_format' + audio frames that speak it (see synthesizeAndSend
+// in internal/ws/session.go). pendingSentenceForAudio links the sentence
+// element to the *next* audio frame the client receives, so playback
+// scheduling (below) can highlight it at the moment it actually starts
+// sounding - not when the text/bytes merely arrived over the wire.
+let pendingSentenceForAudio = null;
+let currentSpeakingEl = null;
+let sentenceHighlightTimers = [];
+
+function renderMarkdown(raw) {
+  const html = marked.parse(raw, { breaks: true });
+  return DOMPurify.sanitize(html);
+}
+
+function clearSentenceHighlighting() {
+  sentenceHighlightTimers.forEach(clearTimeout);
+  sentenceHighlightTimers = [];
+  if (currentSpeakingEl) { currentSpeakingEl.classList.remove('speaking'); currentSpeakingEl = null; }
+  pendingSentenceForAudio = null;
+}
+
+function highlightSentence(sentenceEl) {
+  if (currentSpeakingEl) currentSpeakingEl.classList.remove('speaking');
+  sentenceEl.classList.add('speaking');
+  currentSpeakingEl = sentenceEl;
+}
+
 function openAssistantTurn() {
   beginTurn();
+  clearSentenceHighlighting();
   assistantWrap = document.createElement('div');
   assistantWrap.className = 'flex flex-col gap-xs';
   assistantWrap.innerHTML =
     '<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">BIBI</p>' +
-    '<p class="font-body-lg text-body-lg text-on-surface"><span class="assistant-text"></span><span class="typing-cursor"></span></p>';
-  assistantTextEl = assistantWrap.querySelector('.assistant-text');
+    '<div class="font-body-lg text-body-lg text-on-surface assistant-text flex flex-col gap-1"></div>' +
+    '<span class="typing-cursor"></span>';
+  assistantSentencesEl = assistantWrap.querySelector('.assistant-text');
   assistantCursorEl = assistantWrap.querySelector('.typing-cursor');
   el.turns.appendChild(assistantWrap);
   assistantOpen = true;
@@ -410,7 +457,11 @@ function openAssistantTurn() {
 
 function appendAssistantChunk(text) {
   if (!assistantOpen) openAssistantTurn();
-  assistantTextEl.textContent += (assistantTextEl.textContent ? ' ' : '') + text;
+  const sentenceEl = document.createElement('div');
+  sentenceEl.className = 'assistant-sentence';
+  sentenceEl.innerHTML = renderMarkdown(text);
+  assistantSentencesEl.appendChild(sentenceEl);
+  pendingSentenceForAudio = sentenceEl;
   assistantCursorEl.classList.remove('hidden');
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => assistantCursorEl && assistantCursorEl.classList.add('hidden'), 4000);
@@ -420,6 +471,7 @@ function appendAssistantChunk(text) {
 function closeAssistantTurn(markStopped) {
   if (!assistantOpen) return;
   clearTimeout(settleTimer);
+  clearSentenceHighlighting();
   if (assistantCursorEl) assistantCursorEl.classList.add('hidden');
   if (markStopped && assistantWrap) {
     const marker = document.createElement('span');
@@ -428,7 +480,7 @@ function closeAssistantTurn(markStopped) {
     assistantWrap.appendChild(marker);
   }
   assistantWrap = null;
-  assistantTextEl = null;
+  assistantSentencesEl = null;
   assistantCursorEl = null;
   assistantOpen = false;
 }
@@ -604,6 +656,18 @@ function handleAudioFrame(arrayBuffer) {
   // Schedule strictly after whatever's already queued, so chunks play
   // back-to-back in arrival order rather than overlapping.
   const startAt = Math.max(playbackQueueTime, playbackCtx.currentTime);
+
+  // pendingSentenceForAudio is set once, right when the sentence's text
+  // arrives - this frame is its first chunk of audio, so startAt is when
+  // that sentence actually begins sounding (not when this frame merely
+  // arrived over the wire, which can be well ahead of playback).
+  if (pendingSentenceForAudio) {
+    const sentenceEl = pendingSentenceForAudio;
+    pendingSentenceForAudio = null;
+    const delayMs = Math.max(0, (startAt - playbackCtx.currentTime) * 1000);
+    sentenceHighlightTimers.push(setTimeout(() => highlightSentence(sentenceEl), delayMs));
+  }
+
   source.start(startAt);
   playbackQueueTime = startAt + audioBuffer.duration;
 

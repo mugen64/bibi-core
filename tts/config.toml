@@ -1,6 +1,6 @@
 [voices]
 directory = "./voices"
-default = "en_US-lessac-high.onnx"
+default = "en_US-lessac-medium.onnx"
 max_loaded = 3
 
 [piper]
