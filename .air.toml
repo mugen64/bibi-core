@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/gateway ./cmd/gateway"
+  entrypoint = ["./tmp/gateway"]
+  include_ext = ["go", "toml"]
+  exclude_dir = ["tmp", "bin", "site", "stt", "tts", "llm", "scripts", "proto", "__test__"]
+  exclude_regex = ["_test\\.go"]
+  delay = 200
+  stop_on_error = true
+
+[log]
+  time = false
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = true

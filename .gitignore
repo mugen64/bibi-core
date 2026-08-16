@@ -24,6 +24,10 @@ profile.cov
 go.work
 go.work.sum
 
+# Build/watch output
+/bin/
+/tmp/
+
 # env file
 .env
 
