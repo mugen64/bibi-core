@@ -13,10 +13,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _validate_prompt(prompt: str) -> None:
+    if not prompt.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "invalid_request", "message": "Prompt is required"},
+        )
+
+
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    if len(request.prompt) == 0:
-        raise HTTPException(status_code=400, detail={"code": "invalid_request", "message": "Prompt is required"})
+    _validate_prompt(request.prompt)
 
     try:
         await engine_manager.ensure_ready()
@@ -75,6 +82,8 @@ async def chat_stream(request: ChatRequest):
     endpoint instead - keeping it as HTTP/NDJSON for now so it's easy to
     test standalone with curl before wiring up gRPC.
     """
+    _validate_prompt(request.prompt)
+
     try:
         await engine_manager.ensure_ready()
     except ModelNotFoundError as e:

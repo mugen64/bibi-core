@@ -7,8 +7,8 @@ in chunker.py so this stays swappable if you ever add another backend.
 """
 
 from collections.abc import AsyncIterator
+import logging
 from typing import Any
-from venv import logger
 
 import httpx
 import ollama
@@ -19,6 +19,8 @@ from exceptions import (
     OllamaUnreachableError,
     StreamInterruptedError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaEngine:
@@ -101,7 +103,7 @@ class OllamaEngine:
     async def health_check(self) -> bool:
         try:
             lls = await self.client.list()
-            logger.info(f"found {len(lls.models)}")
+            logger.info("found %d models", len(lls.models))
             return True
         except Exception:
             return False

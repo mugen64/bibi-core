@@ -1,10 +1,8 @@
 import os
 import numpy as np
-from collections.abc import Iterable
-from pathlib import Path
 
-from engines.base import STTEngine
-from engines.models import Transcript,AudioChunk,TranscriptSegment
+from engines.base import AudioSource, STTEngine
+from engines.models import Transcript, TranscriptSegment
 from pywhispercpp.model import Model
 
 
@@ -13,7 +11,7 @@ class WhisperCppEngine(STTEngine):
     def __init__(
         self, 
         model_path: str,
-        n_threads: int = os.cpu_count(),
+        n_threads: int = os.cpu_count() or 1,
     ):
         self._model_path = model_path
         self._model = Model(
@@ -149,4 +147,3 @@ class WhisperCppEngine(STTEngine):
         return audio.astype(
             np.float32
         ) / 32768.0
-

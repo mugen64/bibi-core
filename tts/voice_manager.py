@@ -33,8 +33,11 @@ class VoiceManager:
         if voice_name is None:
             voice_name = self.default_voice
 
+        if Path(voice_name).name != voice_name:
+            raise FileNotFoundError(f"Voice not found: {voice_name}")
+
         voice_path = self.voice_dir / voice_name
-        if not voice_path.exists():
+        if not voice_path.is_file():
             raise FileNotFoundError(f"Voice not found: {voice_path}")
 
         json_path = Path(str(voice_path) + ".json")

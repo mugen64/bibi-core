@@ -1,8 +1,6 @@
-from pydantic import BaseModel
-
-from dataclasses import dataclass
 from typing import Any
-from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class ApiResponse(BaseModel):
@@ -19,7 +17,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     prompt: str
-    conversation_history: list[ChatMessage] = []
+    conversation_history: list[ChatMessage] = Field(default_factory=list)
 
 
 class ChatChunkResponse(BaseModel):

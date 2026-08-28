@@ -8,7 +8,9 @@ class WavEncoder:
         buffer = BytesIO()
 
         chunks = iter(chunks)
-        first = next(chunks)
+        first = next(chunks, None)
+        if first is None:
+            raise ValueError("Synthesis produced no audio")
 
         with wave.open(buffer, "wb") as wav:
             wav.setnchannels(first.channels)
@@ -23,4 +25,3 @@ class WavEncoder:
         buffer.seek(0)
 
         return buffer
-

@@ -102,7 +102,11 @@ func (s *Stream) recvPump() {
 			}
 			return
 		}
-		s.Events <- event
+		select {
+		case s.Events <- event:
+		case <-s.stream.Context().Done():
+			return
+		}
 	}
 }
 

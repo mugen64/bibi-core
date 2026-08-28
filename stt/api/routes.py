@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, WebSocket,Form,File,UploadFile
-from fastapi.responses import StreamingResponse, Response
+import asyncio
+import os
+import tempfile
 
-from api.models import ApiResponse,transcript_to_response
-from engine_manager import stt_manager
-from config import config
-from engines.audio_sources import WavFileAudioSource, WebSocketAudioSource
+from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket
+
 from audio_utils import calculate_duration
+from api.models import ApiResponse, transcript_to_response
+from config import config
+from engine_manager import stt_manager
+from engines.audio_sources import WavFileAudioSource, WebSocketAudioSource
 
 router = APIRouter()
 sm = stt_manager
@@ -21,11 +24,10 @@ def list_voices():
 
 @router.post("/transcribe")
 async def transcribe(
-            file: UploadFile=File(...),
-            model: str=None,
+    file: UploadFile = File(...),
+    model: str | None = None,
 ):
-    print(file.content_type)
-    if file.content_type != "audio/wav":
+    if file.content_type not in {"audio/wav", "audio/x-wav"}:
         raise HTTPException(
             status_code=400,
             detail="Only wav files are supported",
@@ -33,14 +35,25 @@ async def transcribe(
     if model is None:
         model = config.models.default
 
-    temp_file = f"/tmp/{file.filename}"
-    with open(temp_file, "wb") as f:
-        f.write(await file.read())
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            temp_path = temp_file.name
+            while chunk := await file.read(1024 * 1024):
+                temp_file.write(chunk)
 
-    src = WavFileAudioSource(temp_file)
-    engine = sm.get_engine(model)
-
-    script = engine.transcribe(src)
+        src = WavFileAudioSource(temp_path)
+        engine = await asyncio.to_thread(sm.get_engine, model)
+        script = await asyncio.to_thread(engine.transcribe, src)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        await file.close()
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
 
     return ApiResponse(
         status=200,
@@ -66,7 +79,7 @@ async def transcribe_stream(
     buffer = []
 
 
-    engine = stt_manager.get_engine() 
+    engine = await asyncio.to_thread(stt_manager.get_engine)
 
     while True:
  
@@ -86,9 +99,7 @@ async def transcribe_stream(
 
         if duration >= 5:
 
-            transcript = engine.transcribe(
-                buffer
-            )
+            transcript = await asyncio.to_thread(engine.transcribe, list(buffer))
 
 
             await websocket.send_json(
@@ -99,4 +110,3 @@ async def transcribe_stream(
 
 
             buffer.clear()
-

@@ -91,11 +91,16 @@ func (s *Stream) recvPump() {
 			}
 			return
 		}
-		s.Events <- &AudioChunk{
+		chunk := &AudioChunk{
 			Data:        msg.Data,
 			SampleRate:  msg.SampleRate,
 			Channels:    msg.Channels,
 			SampleWidth: msg.SampleWidth,
+		}
+		select {
+		case s.Events <- chunk:
+		case <-s.stream.Context().Done():
+			return
 		}
 	}
 }
