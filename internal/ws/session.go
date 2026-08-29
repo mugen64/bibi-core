@@ -35,6 +35,7 @@ type ControlMessage struct {
 	SampleRate  int32  `json:"sample_rate,omitempty"`
 	Channels    int32  `json:"channels,omitempty"`
 	SampleWidth int32  `json:"sample_width,omitempty"`
+	Voice       string `json:"voice,omitempty"`
 }
 
 type outboundMessage struct {
@@ -59,6 +60,11 @@ type Session struct {
 	ttsClient *ttsclient.Client
 	history   []llmclient.ChatMessage
 	ttsQueue  chan ttsJob
+
+	// voice is read by ttsWorker's goroutine and written by readPump's
+	// goroutine on "set_voice", so it's atomic rather than plain-field.
+	// Empty string means "use the TTS service's default".
+	voice atomic.Pointer[string]
 
 	// currentTurn increments on every new utterance. Any in-flight work
 	// tagged with an older turn is stale and should be abandoned - this
@@ -166,9 +172,20 @@ func (s *Session) handleControlMessage(data []byte) {
 		s.beginNewTurn()
 	case "end_utterance":
 		s.endUtterance()
+	case "set_voice":
+		s.voice.Store(&msg.Voice)
 	default:
 		s.sendError("unknown_message_type", "unrecognized control message type: "+msg.Type)
 	}
+}
+
+// getVoice returns the client's selected voice, or "" (the TTS service's
+// default) if none has been set yet.
+func (s *Session) getVoice() string {
+	if v := s.voice.Load(); v != nil {
+		return *v
+	}
+	return ""
 }
 
 // beginNewTurn handles BOTH the first "start" of a session and any
@@ -334,7 +351,7 @@ func (s *Session) ttsWorker() {
 }
 
 func (s *Session) synthesizeAndSend(job ttsJob) {
-	stream, err := s.ttsClient.Synthesize(s.ctx, job.text, "")
+	stream, err := s.ttsClient.Synthesize(s.ctx, job.text, s.getVoice())
 	if err != nil {
 		s.logger.Error("failed to start tts stream", "error", err)
 		s.sendError("tts_unavailable", "could not synthesize speech")

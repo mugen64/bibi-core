@@ -163,6 +163,12 @@
 <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-xl text-center">Talk to BiBi</h2>
 
 <div class="w-full max-w-[380px] h-[680px] flex flex-col border border-outline rounded-xl overflow-hidden bg-surface shadow-lg">
+<div class="shrink-0 flex items-center justify-between px-md py-xs border-b border-outline-variant dark:border-outline">
+<label class="font-label-caps text-label-caps text-on-surface-variant tracking-widest" for="voiceSelect">VOICE</label>
+<select class="font-label-sm text-label-sm bg-transparent text-on-surface text-right focus:outline-none disabled:opacity-40" disabled="" id="voiceSelect">
+<option value="">Loading…</option>
+</select>
+</div>
 <div class="shrink-0 overflow-y-auto flex-1 min-h-0" id="conversation">
 <div class="px-md py-lg flex flex-col gap-lg" id="turns">
 <p class="font-body-md text-body-md text-on-surface-variant text-center" id="emptyHint">Hold the button below and say something.</p>
@@ -233,6 +239,7 @@ const el = {
   statusText: document.getElementById('statusText'),
   talkBtn: document.getElementById('talkBtn'),
   talkHint: document.getElementById('talkHint'),
+  voiceSelect: document.getElementById('voiceSelect'),
   bars: Array.from(document.querySelectorAll('#bars .bar')),
 };
 
@@ -259,6 +266,7 @@ function connect() {
     setStatus('connected', 'LIVE');
     setTalkEnabled(true);
     initPlaybackContext();
+    sendVoiceSelection();
   };
 
   ws.onclose = () => {
@@ -356,6 +364,61 @@ function showError(code, message) {
   clearTimeout(showError._hideTimer);
   showError._hideTimer = setTimeout(() => el.errorBanner.classList.add('hidden'), 6000);
 }
+
+// ---------- Voice selection ----------
+
+const VOICE_STORAGE_KEY = 'bibiVoice';
+
+function readStoredVoice() {
+  try { return localStorage.getItem(VOICE_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function storeVoice(voice) {
+  try { localStorage.setItem(VOICE_STORAGE_KEY, voice); } catch (e) { /* private mode, etc. - fine to skip */ }
+}
+
+function voiceLabel(name) {
+  return name.replace(/\.onnx$/, '').replace(/[_-]+/g, ' ');
+}
+
+async function loadVoices() {
+  try {
+    const res = await fetch('/api/tts/voices');
+    const body = await res.json();
+    populateVoiceOptions(Array.isArray(body.data) ? body.data : []);
+  } catch (err) {
+    console.error('failed to load voices', err);
+    el.voiceSelect.innerHTML = '<option value="">Default</option>';
+  }
+}
+
+function populateVoiceOptions(voices) {
+  const saved = readStoredVoice();
+  el.voiceSelect.innerHTML = '';
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = 'Default';
+  el.voiceSelect.appendChild(defaultOpt);
+  voices.forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = voiceLabel(name);
+    el.voiceSelect.appendChild(opt);
+  });
+  if (saved && voices.includes(saved)) el.voiceSelect.value = saved;
+  el.voiceSelect.disabled = false;
+}
+
+function sendVoiceSelection() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'set_voice', voice: el.voiceSelect.value }));
+  }
+}
+
+el.voiceSelect.addEventListener('change', () => {
+  storeVoice(el.voiceSelect.value);
+  sendVoiceSelection();
+});
 
 // ---------- Conversation rendering ----------
 
@@ -782,6 +845,7 @@ document.addEventListener('keyup', (e) => {
 });
 
 setTalkEnabled(false);
+loadVoices();
 connect();
 </script>
 
