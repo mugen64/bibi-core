@@ -136,6 +136,7 @@
         .assistant-text a { text-decoration: underline; }
         .assistant-text strong { font-weight: 600; }
         .assistant-text blockquote { border-left: 2px solid currentColor; opacity: 0.8; padding-left: 0.75em; margin: 0.5em 0; }
+        .assistant-sentence.pending { display: none; }
         .assistant-sentence.speaking { font-weight: 600; }
         .assistant-sentence p { margin: 0; }
         #talkBtn { touch-action: none; -webkit-tap-highlight-color: transparent; }
@@ -270,8 +271,11 @@ function connect() {
     reconnectDelay = Math.min(RECONNECT_MAX_DELAY, reconnectDelay * 2);
   };
 
-  ws.onerror = () => {
-    // onclose follows and drives the reconnect loop
+  ws.onerror = (event) => {
+    // The WebSocket spec gives error events no diagnostic payload, and a
+    // close event always follows to drive reconnect/UI state - just log
+    // for debugging so failures aren't silently invisible in devtools.
+    console.error('websocket error', event);
   };
 
   ws.onmessage = (event) => {
@@ -435,8 +439,12 @@ function clearSentenceHighlighting() {
 
 function highlightSentence(sentenceEl) {
   if (currentSpeakingEl) currentSpeakingEl.classList.remove('speaking');
+  sentenceEl.classList.remove('pending');
   sentenceEl.classList.add('speaking');
   currentSpeakingEl = sentenceEl;
+  // Reveal in step with speech: follow the sentence that's actually being
+  // read, not text that arrived over the wire ahead of playback.
+  scrollToBottom();
 }
 
 function openAssistantTurn() {
@@ -457,14 +465,15 @@ function openAssistantTurn() {
 function appendAssistantChunk(text) {
   if (!assistantOpen) openAssistantTurn();
   const sentenceEl = document.createElement('div');
-  sentenceEl.className = 'assistant-sentence';
+  // Stays hidden (see .assistant-sentence.pending) until its audio actually
+  // starts playing - text shouldn't appear ahead of what's being read aloud.
+  sentenceEl.className = 'assistant-sentence pending';
   sentenceEl.innerHTML = renderMarkdown(text);
   assistantSentencesEl.appendChild(sentenceEl);
   pendingSentenceForAudio = sentenceEl;
   assistantCursorEl.classList.remove('hidden');
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => assistantCursorEl && assistantCursorEl.classList.add('hidden'), 4000);
-  scrollToBottom();
 }
 
 function closeAssistantTurn(markStopped) {
