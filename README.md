@@ -16,6 +16,11 @@ independent Python services over gRPC and exposes everything to clients over
 one WebSocket connection, plus proxied REST access to each service's own
 endpoints.
 
+Frontend implementers should start with
+[the frontend integration guide](docs/frontend-integration.md), which covers
+browser audio encoding/playback, every public message and REST endpoint, voice
+assistant and note-taking flows, error handling, and deployment constraints.
+
 See [docs/architecture.md](docs/architecture.md) for the full system design,
 proto contracts, and internals. This README covers running the project and
 using the gateway's routes.
@@ -154,5 +159,4 @@ After changing anything in `proto/`:
 ```
 See [docs/architecture.md](docs/architecture.md#regenerating-protobuf-code) for
 prerequisites.
-
 
