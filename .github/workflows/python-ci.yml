@@ -1,0 +1,55 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "llm/**"
+      - "stt/**"
+      - "tts/**"
+      - ".github/workflows/python-ci.yml"
+  pull_request:
+    paths:
+      - "llm/**"
+      - "stt/**"
+      - "tts/**"
+      - ".github/workflows/python-ci.yml"
+
+jobs:
+  test:
+    name: ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [llm, stt, tts]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # stt's pywhispercpp dependency is pulled from git and compiles
+      # whisper.cpp (a C++ project) as part of `uv sync` - needs a
+      # toolchain the other two apps don't.
+      - name: Install build dependencies
+        if: matrix.app == 'stt'
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Format check (ruff format)
+        run: uv run ruff format --check .
+
+      - name: Run tests
+        run: uv run pytest -q
