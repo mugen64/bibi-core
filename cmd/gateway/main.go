@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
-
-	"fmt"
 
 	"github.com/mugen64/bibi-core/internal/config"
 	"github.com/mugen64/bibi-core/internal/health"
@@ -26,30 +26,39 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	cfg, err := config.Load("gateway.toml")
-	if err != nil {
-		slog.Error("failed to load config", "error", err)
+	if err := run(); err != nil {
+		slog.Error("gateway exited with error", "error", err)
 		os.Exit(1)
 	}
+}
 
-	sttClient, err := sttclient.NewClient(cfg.Services.STTAddr)
+// run contains all of the gateway's startup/serve/shutdown logic.
+// Returning an error here (instead of calling os.Exit at each failure
+// site) guarantees every defer - most importantly, closing the three
+// gRPC client connections - actually runs on every exit path.
+func run() error {
+	cfg, err := config.Load("gateway.toml")
 	if err != nil {
-		slog.Error("failed to connect to stt service", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	idleTimeout := time.Duration(cfg.Services.StreamIdleTimeoutSeconds) * time.Second
+
+	sttClient, err := sttclient.NewClient(cfg.Services.STTAddr, idleTimeout)
+	if err != nil {
+		return fmt.Errorf("connect to stt service: %w", err)
 	}
 	defer sttClient.Close()
 
-	llmClient, err := llmclient.NewClient(cfg.Services.LLMAddr)
+	llmClient, err := llmclient.NewClient(cfg.Services.LLMAddr, idleTimeout)
 	if err != nil {
-		slog.Error("failed to connect to llm service", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("connect to llm service: %w", err)
 	}
 	defer llmClient.Close()
 
-	ttsClient, err := ttsclient.NewClient(cfg.Services.TTSAddr)
+	ttsClient, err := ttsclient.NewClient(cfg.Services.TTSAddr, idleTimeout)
 	if err != nil {
-		slog.Error("failed to connect to tts service", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("connect to tts service: %w", err)
 	}
 	defer ttsClient.Close()
 
@@ -61,26 +70,33 @@ func main() {
 	mux.HandleFunc("/assistant", assistantHandler())
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("site/assets"))))
 
-	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient))
+	mux.HandleFunc("/ws", ws.NewHandler(sttClient, llmClient, ttsClient, cfg.Server.AllowedOrigins))
 
 	mux.Handle("/api/stt/", proxy.NewServiceProxy("stt", cfg.Services.STTHTTPAddr, "/api/stt"))
 	mux.Handle("/api/llm/", proxy.NewServiceProxy("llm", cfg.Services.LLMHTTPAddr, "/api/llm"))
 	mux.Handle("/api/tts/", proxy.NewServiceProxy("tts", cfg.Services.TTSHTTPAddr, "/api/tts"))
 
-	addr := cfg.Server.Host + ":" + itoa(cfg.Server.Port)
+	addr := cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Run server in a goroutine so we can listen for shutdown signals
-	// on the main goroutine below.
+	// on the main goroutine below. Its error is reported through
+	// serveErr instead of os.Exit, so the caller's defers still run.
+	serveErr := make(chan error, 1)
 	go func() {
 		slog.Info("gateway listening", "addr", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server error", "error", err)
-			os.Exit(1)
+			serveErr <- err
+			return
 		}
+		serveErr <- nil
 	}()
 
 	// Graceful shutdown: wait for SIGINT/SIGTERM, then give in-flight
@@ -88,15 +104,28 @@ func main() {
 	// finish before killing the process.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	slog.Info("shutting down gracefully")
+	select {
+	case err := <-serveErr:
+		if err != nil {
+			return fmt.Errorf("server error: %w", err)
+		}
+		return nil
+	case <-quit:
+		slog.Info("shutting down gracefully")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("forced shutdown", "error", err)
+		return fmt.Errorf("shutdown: %w", err)
 	}
+
+	if err := <-serveErr; err != nil {
+		return fmt.Errorf("server error during shutdown: %w", err)
+	}
+	return nil
 }
 
 func indexHandler() http.HandlerFunc {
@@ -129,10 +158,8 @@ func healthHandler(agg *health.Aggregator) http.HandlerFunc {
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
-		json.NewEncoder(w).Encode(report)
+		if err := json.NewEncoder(w).Encode(report); err != nil {
+			slog.Error("failed to write health response", "error", err)
+		}
 	}
-}
-
-func itoa(i int) string {
-	return fmt.Sprintf("%d", i)
 }

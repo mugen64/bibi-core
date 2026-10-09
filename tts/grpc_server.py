@@ -25,4 +25,11 @@ async def serve():
     server.add_insecure_port(addr)
     logger.info("tts grpc server listening on %s", addr)
     await server.start()
-    await server.wait_for_termination()
+    try:
+        await server.wait_for_termination()
+    finally:
+        # Without an explicit stop(), a cancelled/interrupted shutdown
+        # leaves this to the Server object's __del__ finalizer, which
+        # runs after the event loop is already closed and fails loudly
+        # ("Event loop is closed") instead of shutting down cleanly.
+        await server.stop(grace=None)

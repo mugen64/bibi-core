@@ -1,6 +1,10 @@
 [server]
 host = "0.0.0.0"
 port = 8080
+# Origins allowed to open a /ws connection. Leave unset/empty (default)
+# to allow any origin - fine for local dev, set explicitly once this
+# gateway is reachable from outside localhost.
+# allowed_origins = ["https://app.example.com"]
 
 [services]
 stt_addr = "localhost:50051"
@@ -10,3 +14,9 @@ tts_addr = "localhost:50050"
 stt_http_addr = "localhost:5001"
 llm_http_addr = "localhost:5003"
 tts_http_addr = "localhost:5000"
+
+# How long a gRPC stream (STT/LLM/TTS) may go without any message from
+# the backend before the gateway gives up and surfaces an error to the
+# client. Resets on every message received, so a long-but-progressing
+# response is never cut off.
+stream_idle_timeout_seconds = 30

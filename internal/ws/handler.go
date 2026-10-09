@@ -27,17 +27,15 @@ import (
 *
 *
 **/
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
-	//	ReadBufferSize:  16384, // 16KB - closer to actual PCM chunk sizes
-	//	WriteBufferSize: 16384,
-	// Locked down to same-origin by default in production; loosen only
-	// if the client is served from a different origin during dev.
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
+func NewHandler(sttClient *sttclient.Client, llmClient *llmclient.Client, ttsClient *ttsclient.Client, allowedOrigins []string) http.HandlerFunc {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+		//	ReadBufferSize:  16384, // 16KB - closer to actual PCM chunk sizes
+		//	WriteBufferSize: 16384,
+		CheckOrigin: makeOriginChecker(allowedOrigins),
+	}
 
-func NewHandler(sttClient *sttclient.Client, llmClient *llmclient.Client, ttsClient *ttsclient.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -46,5 +44,30 @@ func NewHandler(sttClient *sttclient.Client, llmClient *llmclient.Client, ttsCli
 		}
 		session := NewSession(conn, sttClient, llmClient, ttsClient)
 		session.Run()
+	}
+}
+
+// makeOriginChecker allows requests with no Origin header (non-browser
+// clients never send one) and, when allowedOrigins is non-empty, any
+// origin exactly matching one of them. An empty allowedOrigins allows
+// every origin - an explicit, documented default suited to local dev,
+// not an accidental one.
+func makeOriginChecker(allowedOrigins []string) func(*http.Request) bool {
+	if len(allowedOrigins) == 0 {
+		return func(r *http.Request) bool { return true }
+	}
+
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[o] = struct{}{}
+	}
+
+	return func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		_, ok := allowed[origin]
+		return ok
 	}
 }

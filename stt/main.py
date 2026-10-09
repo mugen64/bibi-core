@@ -44,4 +44,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        # uvicorn re-raises SIGINT as a KeyboardInterrupt inside the
+        # event loop (it expects to own the loop outright) - without
+        # this, Ctrl+C prints a full traceback and exits non-zero even
+        # though the shutdown itself is clean.
+        logger.info("shutdown requested, exiting")

@@ -47,7 +47,7 @@ func (a *Aggregator) Check(ctx context.Context) Report {
 
 	go func() {
 		defer wg.Done()
-		status := checkSTT(ctx, a.sttClient)
+		status := checkService(ctx, a.sttClient.HealthCheck)
 		mu.Lock()
 		report.STT = status
 		mu.Unlock()
@@ -55,7 +55,7 @@ func (a *Aggregator) Check(ctx context.Context) Report {
 
 	go func() {
 		defer wg.Done()
-		status := checkLLM(ctx, a.llmClient)
+		status := checkService(ctx, a.llmClient.HealthCheck)
 		mu.Lock()
 		report.LLM = status
 		mu.Unlock()
@@ -63,7 +63,7 @@ func (a *Aggregator) Check(ctx context.Context) Report {
 
 	go func() {
 		defer wg.Done()
-		status := checkTTS(ctx, a.ttsClient)
+		status := checkService(ctx, a.ttsClient.HealthCheck)
 		mu.Lock()
 		report.TTS = status
 		mu.Unlock()
@@ -78,26 +78,19 @@ func (a *Aggregator) Check(ctx context.Context) Report {
 	return report
 }
 
-func checkSTT(ctx context.Context, c *sttclient.Client) ServiceStatus {
-	resp, err := c.HealthCheck(ctx)
-	if err != nil {
-		return ServiceStatus{Healthy: false, Error: err.Error()}
-	}
-	return ServiceStatus{Healthy: resp.Healthy}
+// healthResponse is satisfied by each service's generated
+// *pb.HealthResponse type - protoc-gen-go always emits a GetHealthy()
+// getter alongside the Healthy field.
+type healthResponse interface {
+	GetHealthy() bool
 }
 
-func checkLLM(ctx context.Context, c *llmclient.Client) ServiceStatus {
-	resp, err := c.HealthCheck(ctx)
+// checkService collapses what used to be three copy-pasted
+// checkSTT/checkLLM/checkTTS functions into one.
+func checkService[T healthResponse](ctx context.Context, check func(context.Context) (T, error)) ServiceStatus {
+	resp, err := check(ctx)
 	if err != nil {
 		return ServiceStatus{Healthy: false, Error: err.Error()}
 	}
-	return ServiceStatus{Healthy: resp.Healthy}
-}
-
-func checkTTS(ctx context.Context, c *ttsclient.Client) ServiceStatus {
-	resp, err := c.HealthCheck(ctx)
-	if err != nil {
-		return ServiceStatus{Healthy: false, Error: err.Error()}
-	}
-	return ServiceStatus{Healthy: resp.Healthy}
+	return ServiceStatus{Healthy: resp.GetHealthy()}
 }
