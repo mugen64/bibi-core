@@ -2,11 +2,12 @@ from pathlib import Path
 
 from piper import PiperVoice
 
+from engines.base import TTSEngine
 from engines.models import AudioChunk
-from text_utils import strip_markdown
+from utils.text import strip_markdown
 
 
-class Piper:
+class PiperEngine(TTSEngine):
     def __init__(self, voice_path: Path):
         self.voice_path = voice_path
 

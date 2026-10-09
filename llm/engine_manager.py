@@ -1,8 +1,8 @@
 from collections.abc import AsyncIterator
 from typing import Any
 
-from engines.chunker import chunk_stream
 from engines.ollama_engine import OllamaEngine
+from utils.chunker import chunk_stream
 
 
 class EngineManager:

@@ -1,6 +1,6 @@
 """
 Implements the generated SpeechToTextServicer interface, using the
-existing STTManager / WhisperCppEngine under the hood. Buffers incoming
+existing EngineManager / WhisperCppEngine under the hood. Buffers incoming
 audio chunks and calls engine.transcribe() (a blocking call) via
 asyncio.to_thread so it doesn't block the gRPC event loop.
 """
@@ -12,9 +12,9 @@ import grpc
 
 import stt_pb2
 import stt_pb2_grpc
-from audio_utils import calculate_duration
+from utils.audio import calculate_duration
 from engines.models import AudioChunk
-from engine_manager import stt_manager  # ASSUMPTION: adjust import path/name to match your actual module
+from engine_manager import engine_manager
 from pb_convert import chunk_from_proto, error_event, transcript_to_event
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class SpeechToTextServicer(stt_pb2_grpc.SpeechToTextServicer):
         buffer: list[AudioChunk] = []
 
         try:
-            engine = stt_manager.get_engine()  # default model for now
+            engine = engine_manager.get_engine()  # default model for now
         except FileNotFoundError as e:
             yield error_event("model_not_found", str(e))
             return
@@ -71,10 +71,10 @@ class SpeechToTextServicer(stt_pb2_grpc.SpeechToTextServicer):
 
     async def HealthCheck(self, request, context):
         try:
-            models = stt_manager.list_models()
+            models = engine_manager.list_models()
             return stt_pb2.HealthResponse(
                 healthy=len(models) > 0,
-                model_loaded=stt_manager._default_model,
+                model_loaded=engine_manager._default_model,
             )
         except Exception as e:
             logger.exception("health check failed")

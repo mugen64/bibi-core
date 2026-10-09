@@ -4,7 +4,7 @@ import logging
 import uvicorn
 
 from config import config
-from engine_manager import stt_manager
+from engine_manager import engine_manager
 from grpc_server import serve as serve_grpc
 from server import get_app
 
@@ -31,7 +31,7 @@ async def main():
     # arrives first). get_engine() is blocking, but this runs once
     # before either server starts accepting traffic, so it's fine here.
     logger.info("loading default model '%s'...", config.models.default)
-    stt_manager.get_engine()
+    engine_manager.get_engine()
     logger.info("model loaded, starting servers")
 
     # Run gRPC (Go gateway traffic) and HTTP (manual testing / health)

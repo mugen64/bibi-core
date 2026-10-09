@@ -1,5 +1,5 @@
 import subprocess
-from engines.piper_engine import Piper
+from engines.piper_engine import PiperEngine
 from output.host import HostAudioSink
 
 sink = HostAudioSink()

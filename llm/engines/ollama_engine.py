@@ -14,6 +14,7 @@ import httpx
 import ollama
 
 from config import config
+from engines.base import LLMEngine
 from exceptions import (
     ModelNotFoundError,
     OllamaUnreachableError,
@@ -23,7 +24,7 @@ from exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class OllamaEngine:
+class OllamaEngine(LLMEngine):
     def __init__(self):
         self.client :ollama.AsyncClient = ollama.AsyncClient(host=config.ollama.host)
         self.model :str = config.ollama.model

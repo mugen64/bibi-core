@@ -4,9 +4,9 @@ import grpc
 
 import tts_pb2
 import tts_pb2_grpc
-from async_utils import iter_in_thread
-from engines.piper_engine import Piper
-from voice_manager import voice_manager  # see singleton change below
+from utils.async_io import iter_in_thread
+from engines.piper_engine import PiperEngine
+from engine_manager import engine_manager
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class TextToSpeechServicer(tts_pb2_grpc.TextToSpeechServicer):
        
         try:
         
-            with voice_manager.acquire_engine(request.voice or None) as engine:
+            with engine_manager.acquire_engine(request.voice or None) as engine:
                 async for chunk in iter_in_thread(engine.stream, request.text):
                     if context.cancelled():
                         logger.info("client cancelled stream, stopping synthesis")
@@ -39,7 +39,7 @@ class TextToSpeechServicer(tts_pb2_grpc.TextToSpeechServicer):
 
     async def HealthCheck(self, request, context):
         try:
-            voices = voice_manager.list_voices()
+            voices = engine_manager.list_voices()
             return tts_pb2.HealthResponse(healthy=True, voices_available=voices)
         except Exception:
             logger.exception("health check failed")

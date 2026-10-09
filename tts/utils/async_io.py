@@ -1,5 +1,5 @@
 """
-Bridges a synchronous generator (e.g. Piper.stream(), which blocks)
+Bridges a synchronous generator (e.g. PiperEngine.stream(), which blocks)
 into something an async gRPC servicer can iterate without blocking
 the event loop.
 """

@@ -6,7 +6,7 @@ from engines.base import STTEngine
 from engines.whispercpp_engine import WhisperCppEngine
 
 
-class STTManager:
+class EngineManager:
     def __init__(self):
         self._model_dir = config.models.directory
         self._engines: dict[str, STTEngine] = {}
@@ -48,8 +48,8 @@ class STTManager:
             return engine
 
 # Singleton - created once at import time, shared by every module that
-# imports `stt_manager` from here (api routes, grpc servicer, etc.).
+# imports `engine_manager` from here (api routes, grpc servicer, etc.).
 # Whisper models get loaded lazily via get_engine() and cached in
 # self._engines, so the first call per model pays the load cost and
 # every subsequent call reuses the already-loaded model in memory.
-stt_manager = STTManager()
+engine_manager = EngineManager()

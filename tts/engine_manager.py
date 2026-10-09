@@ -4,16 +4,16 @@ from pathlib import Path
 from threading import Lock
 
 from config import config
-from engines.piper_engine import Piper
+from engines.piper_engine import PiperEngine
 
 
-class VoiceManager:
+class EngineManager:
     def __init__(self, max_loaded_voices: int = config.voices.max_loaded):
         self.voice_dir: Path = config.voices.directory
         self.default_voice = config.voices.default
         self.max_loaded_voices = max_loaded_voices
 
-        self._engines: OrderedDict[str, Piper] = OrderedDict()
+        self._engines: OrderedDict[str, PiperEngine] = OrderedDict()
         self._ref_counts: dict[str, int] = {}
         # Guards all three dicts above - get_engine/acquire/release can
         # be called concurrently from multiple request-handling threads
@@ -54,7 +54,7 @@ class VoiceManager:
         engine that's mid-use by this or any other concurrent request.
 
         Usage:
-            with voice_manager.acquire_engine(request.voice) as engine:
+            with engine_manager.acquire_engine(request.voice) as engine:
                 for chunk in engine.stream(text):
                     ...
         """
@@ -76,7 +76,7 @@ class VoiceManager:
                 # this engine was pinned in use.
                 self._evict_if_over_capacity()
 
-    def get_engine(self, voice_name: str | None = None) -> Piper:
+    def get_engine(self, voice_name: str | None = None) -> PiperEngine:
         """
         Unsafe relative to eviction races - kept for simple callers that
         do one quick synchronous synthesis and return immediately (e.g.
@@ -86,7 +86,7 @@ class VoiceManager:
         """
         return self._get_or_load(voice_name or self.default_voice)
 
-    def _get_or_load(self, voice_name: str) -> Piper:
+    def _get_or_load(self, voice_name: str) -> PiperEngine:
         with self._lock:
             if voice_name in self._engines:
                 self._engines.move_to_end(voice_name)
@@ -95,7 +95,7 @@ class VoiceManager:
         # Load outside the lock - model loading is slow (I/O + compute),
         # no need to hold the lock and block other callers during it.
         voice_path = self.get_voice_path(voice_name)
-        engine = Piper(voice_path)
+        engine = PiperEngine(voice_path)
 
         with self._lock:
             # Another thread may have loaded the same voice while we
@@ -137,4 +137,4 @@ class VoiceManager:
             return list(self._engines.keys())
 
 
-voice_manager = VoiceManager()
+engine_manager = EngineManager()

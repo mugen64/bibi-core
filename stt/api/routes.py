@@ -4,14 +4,14 @@ import tempfile
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket
 
-from audio_utils import calculate_duration
+from utils.audio import calculate_duration
 from api.models import ApiResponse, transcript_to_response
 from config import config
-from engine_manager import stt_manager
+from engine_manager import engine_manager
 from engines.audio_sources import WavFileAudioSource, WebSocketAudioSource
 
 router = APIRouter()
-sm = stt_manager
+sm = engine_manager
 
 @router.get("/models")
 def list_voices():
@@ -79,7 +79,7 @@ async def transcribe_stream(
     buffer = []
 
 
-    engine = await asyncio.to_thread(stt_manager.get_engine)
+    engine = await asyncio.to_thread(engine_manager.get_engine)
 
     while True:
  
