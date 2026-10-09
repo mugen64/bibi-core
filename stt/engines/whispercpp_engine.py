@@ -1,4 +1,5 @@
 import os
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -39,6 +40,14 @@ class WhisperCppEngine(STTEngine):
             print_realtime=False,
             n_threads=n_threads,
         )
+        # whisper.cpp's C++ context isn't safe for concurrent
+        # whisper_full() calls - EngineManager caches one engine per
+        # model and can hand the same instance to multiple concurrent
+        # callers (each running transcribe() on its own thread via
+        # asyncio.to_thread), so the native call itself must be
+        # serialized here. Confirmed by a real segfault in
+        # ggml_compute_forward_flash_attn_ext under concurrent use.
+        self._model_lock = threading.Lock()
 
     def transcribe(
         self,
@@ -47,11 +56,12 @@ class WhisperCppEngine(STTEngine):
 
         samples = self._convert_audio(source)
 
-        segments = self._model.transcribe(
-            samples,
-            print_progress=False,
-            print_realtime=False,
-        )
+        with self._model_lock:
+            segments = self._model.transcribe(
+                samples,
+                print_progress=False,
+                print_realtime=False,
+            )
 
         return Transcript(
             # language=self.language,
