@@ -1,9 +1,13 @@
+[engine]
+provider = "ollama"
+
 [ollama]
 host = "http://localhost:11434"
 model = "llama3.2:1b"
 temperature = 0.7
 context_window = 4096
 keep_alive = "30m"
+availability_cache_seconds = 10
 
 [chunking]
 boundary_chars = [".", "?", "!"]

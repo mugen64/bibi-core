@@ -1,8 +1,13 @@
+[engine]
+provider = "whispercpp"
+
 [models]
 directory = "/home/kyosimba/whisper.cpp/models"
 default = "ggml-base"
+max_loaded = 4
 
 [server]
 host = "0.0.0.0"
 port = 5001
 grpc_port = 50051
+log_level = "INFO"

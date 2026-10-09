@@ -1,12 +1,11 @@
 import math
-
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
-from enum import Enum
 
-from pydantic import BaseModel, Field
-from engines.models import Transcript,TranscriptSegment
+from pydantic import BaseModel
 
+from engines.models import Transcript
 
 
 @dataclass
@@ -16,8 +15,9 @@ class ApiResponse:
     message: str
 
 
-class AudioFormat(str, Enum):
+class AudioFormat(StrEnum):
     WAV = "wav"
+
 
 class SegmentResponse(BaseModel):
     start_ms: int
@@ -27,20 +27,22 @@ class SegmentResponse(BaseModel):
 
 
 class TranscriptionResponse(BaseModel):
-    segments:list[SegmentResponse]
+    segments: list[SegmentResponse]
 
-def transcript_to_response(transcript: Transcript)-> TranscriptionResponse:
+
+def transcript_to_response(transcript: Transcript) -> TranscriptionResponse:
     return TranscriptionResponse(
         segments=[
             SegmentResponse(
                 start_ms=s.start_ms,
                 end_ms=s.end_ms,
                 text=s.text,
-                score=clean_nan(s.score)
+                score=clean_nan(s.score),
             )
             for s in transcript.segments
         ]
     )
+
 
 def clean_nan(obj):
     if isinstance(obj, float):

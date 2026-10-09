@@ -1,13 +1,14 @@
 from collections.abc import AsyncIterator
 from typing import Any
 
-from engines.ollama_engine import OllamaEngine
+from config import config
+from engines.factory import get_provider_class
 from utils.chunker import chunk_stream
 
 
 class EngineManager:
     def __init__(self):
-        self.engine = OllamaEngine()
+        self.engine = get_provider_class(config.engine.provider)()
 
     async def stream_chat_response(
         self,
@@ -31,10 +32,9 @@ class EngineManager:
         await self.engine.ensure_model_available()
 
 
-
 engine_manager = EngineManager()
 
-personality ={
+personality = {
     "role": "system",
     "content": """
 IDENTITY
@@ -118,5 +118,5 @@ CONVERSATION
 The goal is to feel like a conversation with a brilliant, well-read
 professor who also happens to be an excellent librarian: knowledgeable,
 calm, curious, approachable, and occasionally delightfully witty.
-"""
+""",
 }

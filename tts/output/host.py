@@ -1,11 +1,13 @@
 import sounddevice as sd
+
 from output.interface import AudioSink
+
 
 class HostAudioSink(AudioSink):
     async def write(self, chunks):
         stream = None
 
-        for chunk in chunks:
+        async for chunk in chunks:
             if stream is None:
                 stream = sd.RawOutputStream(
                     samplerate=chunk.sample_rate,
@@ -19,4 +21,3 @@ class HostAudioSink(AudioSink):
         if stream:
             stream.stop()
             stream.close()
-

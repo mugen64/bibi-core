@@ -8,7 +8,7 @@ from engine_manager import engine_manager
 from grpc_server import serve as serve_grpc
 from server import get_app
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=config.server.log_level)
 logger = logging.getLogger(__name__)
 
 app = get_app()
@@ -19,7 +19,7 @@ async def serve_http():
         app,
         host=config.server.host,
         port=config.server.port,
-        log_level="info",
+        log_level=config.server.log_level.lower(),
     )
     server = uvicorn.Server(uv_config)
     await server.serve()

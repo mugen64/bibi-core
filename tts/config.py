@@ -29,6 +29,18 @@ class ServerConfig:
     host: str = "0.0.0.0"
     port: int = 5000
     grpc_port: int = 50050  # matches gateway.toml's tts_addr
+    log_level: str = "INFO"
+
+    def __post_init__(self):
+        # logging.basicConfig() requires an uppercase level name
+        # ("INFO", not "info") - normalize so either casing works in
+        # config.toml.
+        self.log_level = self.log_level.upper()
+
+
+@dataclass
+class EngineConfig:
+    provider: str = "piper"
 
 
 @dataclass
@@ -36,6 +48,7 @@ class Config:
     voices: VoicesConfig
     piper: PiperConfig
     server: ServerConfig
+    engine: EngineConfig
 
     @classmethod
     def load(cls, path: str | Path = "config.toml") -> "Config":
@@ -46,6 +59,7 @@ class Config:
             voices=VoicesConfig(**data.get("voices", {})),
             piper=PiperConfig(**data.get("piper", {})),
             server=ServerConfig(**data.get("server", {})),
+            engine=EngineConfig(**data.get("engine", {})),
         )
 
 

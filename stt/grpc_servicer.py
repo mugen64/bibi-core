@@ -8,14 +8,13 @@ asyncio.to_thread so it doesn't block the gRPC event loop.
 import asyncio
 import logging
 
-import grpc
-
 import stt_pb2
 import stt_pb2_grpc
-from utils.audio import calculate_duration
-from engines.models import AudioChunk
 from engine_manager import engine_manager
+from engines.models import AudioChunk
+from exceptions import InvalidAudioFormatError, ModelNotFoundError
 from pb_convert import chunk_from_proto, error_event, transcript_to_event
+from utils.audio import calculate_duration
 
 logger = logging.getLogger(__name__)
 
@@ -27,26 +26,21 @@ class SpeechToTextServicer(stt_pb2_grpc.SpeechToTextServicer):
         buffer: list[AudioChunk] = []
 
         try:
-            engine = engine_manager.get_engine()  # default model for now
-        except FileNotFoundError as e:
-            yield error_event("model_not_found", str(e))
-            return
+            with engine_manager.acquire_engine() as engine:  # default model for now
+                async for msg in request_iterator:
+                    if context.cancelled():
+                        logger.info("client cancelled stream, stopping")
+                        return
 
-        try:
-            async for msg in request_iterator:
-                if context.cancelled():
-                    logger.info("client cancelled stream, stopping")
-                    return
+                    buffer.append(chunk_from_proto(msg))
+                    duration = calculate_duration(buffer)
 
-                buffer.append(chunk_from_proto(msg))
-                duration = calculate_duration(buffer)
-
-                if duration >= WINDOW_SECONDS or msg.end_of_utterance:
-                    if buffer:
-                        # engine.transcribe() is a blocking call
-                        # (pywhispercpp) - run off the event loop
+                    if (duration >= WINDOW_SECONDS or msg.end_of_utterance) and buffer:
+                        # engine.transcribe() is a blocking call (pywhispercpp) -
+                        # run off the event loop
+                        prepared = list(engine_manager.prepare_audio(buffer))
                         transcript = await asyncio.to_thread(
-                            engine.transcribe, buffer
+                            engine.transcribe, prepared
                         )
                         event_type = (
                             stt_pb2.TranscriptEvent.FINAL
@@ -56,14 +50,17 @@ class SpeechToTextServicer(stt_pb2_grpc.SpeechToTextServicer):
                         yield transcript_to_event(transcript, event_type)
                         buffer.clear()
 
-                if msg.end_of_utterance:
-                    return
+                    if msg.end_of_utterance:
+                        return
 
-        except ValueError as e:
+        except ModelNotFoundError as e:
+            yield error_event(e.code, str(e))
+
+        except InvalidAudioFormatError as e:
             # raised by WhisperCppEngine._validate_chunk on mismatched
             # sample rate/channels/width across chunks
             logger.warning("invalid audio format: %s", e)
-            yield error_event("invalid_audio_format", str(e))
+            yield error_event(e.code, str(e))
 
         except Exception as e:
             logger.exception("unexpected error in StreamTranscribe")
@@ -74,8 +71,8 @@ class SpeechToTextServicer(stt_pb2_grpc.SpeechToTextServicer):
             models = engine_manager.list_models()
             return stt_pb2.HealthResponse(
                 healthy=len(models) > 0,
-                model_loaded=engine_manager._default_model,
+                model_loaded=engine_manager.default_model,
             )
-        except Exception as e:
+        except Exception:
             logger.exception("health check failed")
             return stt_pb2.HealthResponse(healthy=False, model_loaded="")

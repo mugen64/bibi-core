@@ -1,9 +1,8 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
-from enum import Enum
 
 from pydantic import BaseModel, Field
-
 
 
 @dataclass
@@ -13,7 +12,7 @@ class ApiResponse:
     message: str
 
 
-class AudioFormat(str, Enum):
+class AudioFormat(StrEnum):
     WAV = "wav"
 
 

@@ -17,7 +17,7 @@ async def serve_http():
         app,
         host=config.server.host,
         port=config.server.port,
-        log_level=config.server.log_level,
+        log_level=config.server.log_level.lower(),
     )
     server = uvicorn.Server(uv_config)
     await server.serve()

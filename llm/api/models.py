@@ -9,7 +9,6 @@ class ApiResponse(BaseModel):
     message: str
 
 
-
 class ChatMessage(BaseModel):
     role: str  # "user" | "assistant"
     content: str
@@ -22,6 +21,7 @@ class ChatRequest(BaseModel):
 
 class ChatChunkResponse(BaseModel):
     """One sentence-sized chunk, streamed as newline-delimited JSON."""
+
     type: str = "chunk"
     text: str
 

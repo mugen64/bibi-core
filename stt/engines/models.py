@@ -1,11 +1,22 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class AudioChunk:
     data: bytes
     sample_rate: int
     channels: int
     sample_width: int
+
+
+@dataclass(frozen=True)
+class AudioFormatSpec:
+    """The exact format an STTEngine provider's transcribe() requires."""
+
+    sample_rate: int
+    channels: int
+    sample_width: int
+
 
 @dataclass
 class TranscriptSegment:
@@ -22,4 +33,4 @@ class Transcript:
 
     @property
     def text(self):
-        return "".join(seg.text for seg in self.segments) 
+        return "".join(seg.text for seg in self.segments)

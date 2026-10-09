@@ -1,23 +1,19 @@
-import asyncio
 import logging
 
 import grpc
+from grpc_reflection.v1alpha import reflection
 
 import stt_pb2
 import stt_pb2_grpc
 from config import config
 from grpc_servicer import SpeechToTextServicer
-from grpc_reflection.v1alpha import reflection
-
 
 logger = logging.getLogger(__name__)
 
 
 async def serve():
     server = grpc.aio.server()
-    stt_pb2_grpc.add_SpeechToTextServicer_to_server(
-        SpeechToTextServicer(), server
-    )
+    stt_pb2_grpc.add_SpeechToTextServicer_to_server(SpeechToTextServicer(), server)
 
     # Enables reflection so tools like grpcurl can discover the service
     # without needing the .proto file passed explicitly - handy for

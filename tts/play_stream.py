@@ -1,8 +1,8 @@
-import subprocess
-from engines.piper_engine import PiperEngine
 from output.host import HostAudioSink
+from utils.async_io import iter_in_thread
 
 sink = HostAudioSink()
 
+
 async def play_stream(piper, text):
-    await sink.write(piper.stream(text))
+    await sink.write(iter_in_thread(piper.stream, text))

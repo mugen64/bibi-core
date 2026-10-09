@@ -1,13 +1,16 @@
 import wave
 from pathlib import Path
-from engines.models import AudioChunk
-from engines.base import AudioSource
+
 from fastapi import WebSocket
+
+from engines.base import AudioSource
+from engines.models import AudioChunk
 
 
 class WavFileAudioSource(AudioSource):
     def __init__(self, path: Path):
         self.path = path
+
     def __iter__(self):
         with wave.open(str(self.path), "rb") as wav:
             while True:
@@ -22,9 +25,7 @@ class WavFileAudioSource(AudioSource):
                 )
 
 
-
 class WebSocketAudioSource:
-
     def __init__(
         self,
         websocket: WebSocket,
@@ -37,17 +38,12 @@ class WebSocketAudioSource:
         self.channels = channels
         self.sample_width = sample_width
 
-
     async def receive_chunk(
         self,
     ) -> AudioChunk | None:
 
         try:
-
-            data = await (
-                self.websocket.receive_bytes()
-            )
-
+            data = await self.websocket.receive_bytes()
 
             return AudioChunk(
                 data=data,
@@ -56,7 +52,5 @@ class WebSocketAudioSource:
                 sample_width=self.sample_width,
             )
 
-
         except Exception:
-
             return None

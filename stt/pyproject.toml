@@ -20,4 +20,19 @@ pywhispercpp = { git = "https://github.com/absadiki/pywhispercpp" }
 [dependency-groups]
 dev = [
     "grpcio-tools>=1.83.0",
+    "pytest>=8",
+    "ruff>=0.16",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+extend-exclude = ["*_pb2.py", "*_pb2_grpc.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"api/routes.py" = ["B008"]

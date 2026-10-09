@@ -33,8 +33,7 @@ class LLMChatServicer(llm_pb2_grpc.LLMChatServicer):
             return
 
         history = [
-            {"role": m.role, "content": m.content}
-            for m in request.conversation_history
+            {"role": m.role, "content": m.content} for m in request.conversation_history
         ]
         history.insert(0, personality)
 

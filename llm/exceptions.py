@@ -1,5 +1,6 @@
 class LLMServiceError(Exception):
     """Base class for all engine-level errors."""
+
     code: str = "llm_error"
 
 
@@ -8,9 +9,7 @@ class ModelNotFoundError(LLMServiceError):
 
     def __init__(self, model: str):
         self.model = model
-        super().__init__(
-            f"Model '{model}' not found. Try: ollama pull {model}"
-        )
+        super().__init__(f"Model '{model}' not found. Try: ollama pull {model}")
 
 
 class OllamaUnreachableError(LLMServiceError):
@@ -25,4 +24,3 @@ class StreamInterruptedError(LLMServiceError):
 
     def __init__(self, reason: str = "connection dropped mid-generation"):
         super().__init__(reason)
-

@@ -6,8 +6,9 @@ yield tokens as they arrive." Sentence-chunking logic lives separately
 in chunker.py so this stays swappable if you ever add another backend.
 """
 
-from collections.abc import AsyncIterator
 import logging
+import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -26,8 +27,11 @@ logger = logging.getLogger(__name__)
 
 class OllamaEngine(LLMEngine):
     def __init__(self):
-        self.client :ollama.AsyncClient = ollama.AsyncClient(host=config.ollama.host)
-        self.model :str = config.ollama.model
+        self.client: ollama.AsyncClient = ollama.AsyncClient(host=config.ollama.host)
+        self.model: str = config.ollama.model
+        # Monotonic timestamp of the last successful ensure_model_available()
+        # check - lets us skip the Ollama round-trip on every request.
+        self._last_checked_at: float | None = None
 
     async def models(self) -> set[str]:
         try:
@@ -35,14 +39,23 @@ class OllamaEngine(LLMEngine):
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:
             raise OllamaUnreachableError() from e
 
-        return  {m["model"] for m in models.get("models", [])}
+        return {m["model"] for m in models.get("models", [])}
 
     async def ensure_model_available(self) -> None:
         """
         Pre-flight check - call this BEFORE opening a streaming response,
         so failures surface as a normal HTTP error code rather than a
         broken stream. Raises ModelNotFoundError or OllamaUnreachableError.
+
+        A successful check is cached for availability_cache_seconds, so a
+        burst of requests doesn't each pay a round-trip to Ollama. Failures
+        are never cached - always re-checked immediately.
         """
+        now = time.monotonic()
+        ttl = config.ollama.availability_cache_seconds
+        if self._last_checked_at is not None and (now - self._last_checked_at) < ttl:
+            return
+
         try:
             models = await self.client.list()
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:
@@ -57,6 +70,8 @@ class OllamaEngine(LLMEngine):
         if not matches:
             raise ModelNotFoundError(self.model)
 
+        self._last_checked_at = now
+
     async def stream_response(
         self,
         prompt: str,
@@ -69,9 +84,7 @@ class OllamaEngine(LLMEngine):
         Raises StreamInterruptedError if the connection drops partway
         through generation (network blip, Ollama restart, etc).
         """
-        messages = (conversation_history or []) + [
-            {"role": "user", "content": prompt}
-        ]
+        messages = (conversation_history or []) + [{"role": "user", "content": prompt}]
 
         try:
             stream = await self.client.chat(

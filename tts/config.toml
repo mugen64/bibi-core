@@ -1,3 +1,6 @@
+[engine]
+provider = "piper"
+
 [voices]
 directory = "./voices"
 default = "en_US-lessac-medium.onnx"
@@ -10,3 +13,4 @@ sample_rate = 22050
 host = "0.0.0.0"
 port = 5000
 grpc_port = 50050
+log_level = "INFO"

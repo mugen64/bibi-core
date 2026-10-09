@@ -1,15 +1,34 @@
 import os
-import numpy as np
+from pathlib import Path
 
-from engines.base import AudioSource, STTEngine
-from engines.models import Transcript, TranscriptSegment
+import numpy as np
 from pywhispercpp.model import Model
 
+from engines.base import AudioSource, STTEngine
+from engines.models import AudioFormatSpec, Transcript, TranscriptSegment
+from exceptions import InvalidAudioFormatError, ModelNotFoundError
+
+_REQUIRED_FORMAT = AudioFormatSpec(sample_rate=16000, channels=1, sample_width=2)
 
 
 class WhisperCppEngine(STTEngine):
+    @classmethod
+    def list_available(cls, directory: Path) -> list[str]:
+        return sorted(f.stem for f in directory.glob("*.bin"))
+
+    @classmethod
+    def resolve_path(cls, directory: Path, name: str) -> Path:
+        model_path = directory / f"{name}.bin"
+        if not model_path.is_file():
+            raise ModelNotFoundError(name)
+        return model_path
+
+    @classmethod
+    def required_format(cls) -> AudioFormatSpec:
+        return _REQUIRED_FORMAT
+
     def __init__(
-        self, 
+        self,
         model_path: str,
         n_threads: int = os.cpu_count() or 1,
     ):
@@ -18,7 +37,7 @@ class WhisperCppEngine(STTEngine):
             model=model_path,
             print_progress=False,
             print_realtime=False,
-            n_threads=n_threads
+            n_threads=n_threads,
         )
 
     def transcribe(
@@ -30,7 +49,6 @@ class WhisperCppEngine(STTEngine):
 
         segments = self._model.transcribe(
             samples,
-            
             print_progress=False,
             print_realtime=False,
         )
@@ -52,7 +70,6 @@ class WhisperCppEngine(STTEngine):
             ],
         )
 
-
     def _convert_audio(
         self,
         source: AudioSource,
@@ -64,14 +81,11 @@ class WhisperCppEngine(STTEngine):
         channels = None
         sample_width = None
 
-
         for chunk in source:
-
             if sample_rate is None:
                 sample_rate = chunk.sample_rate
                 channels = chunk.channels
                 sample_width = chunk.sample_width
-
 
             self._validate_chunk(
                 chunk,
@@ -82,17 +96,10 @@ class WhisperCppEngine(STTEngine):
 
             pcm.extend(chunk.data)
 
-
         if not pcm:
-            raise ValueError(
-                "Audio source produced no data"
-            )
+            raise InvalidAudioFormatError("Audio source produced no data")
 
-
-        return self._pcm_to_float32(
-            pcm
-        )
-
+        return self._pcm_to_float32(pcm)
 
     def _validate_chunk(
         self,
@@ -103,36 +110,28 @@ class WhisperCppEngine(STTEngine):
     ):
 
         if chunk.sample_rate != sample_rate:
-            raise ValueError(
+            raise InvalidAudioFormatError(
                 "All audio chunks must have the same sample rate"
             )
 
         if chunk.channels != channels:
-            raise ValueError(
+            raise InvalidAudioFormatError(
                 "All audio chunks must have the same channel count"
             )
 
         if chunk.sample_width != sample_width:
-            raise ValueError(
+            raise InvalidAudioFormatError(
                 "All audio chunks must have the same sample width"
             )
 
-
         if chunk.sample_rate != 16000:
-            raise ValueError(
-                "Whisper requires 16000Hz audio"
-            )
+            raise InvalidAudioFormatError("Whisper requires 16000Hz audio")
 
         if chunk.channels != 1:
-            raise ValueError(
-                "Whisper requires mono audio"
-            )
+            raise InvalidAudioFormatError("Whisper requires mono audio")
 
         if chunk.sample_width != 2:
-            raise ValueError(
-                "Whisper requires 16-bit PCM"
-            )
-
+            raise InvalidAudioFormatError("Whisper requires 16-bit PCM")
 
     def _pcm_to_float32(
         self,
@@ -144,6 +143,4 @@ class WhisperCppEngine(STTEngine):
             dtype=np.int16,
         )
 
-        return audio.astype(
-            np.float32
-        ) / 32768.0
+        return audio.astype(np.float32) / 32768.0

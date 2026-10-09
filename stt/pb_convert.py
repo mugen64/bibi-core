@@ -30,7 +30,7 @@ def segment_to_proto(seg: TranscriptSegment) -> stt_pb2.TranscriptSegmentMsg:
 
 def transcript_to_event(
     transcript: Transcript,
-    event_type: "stt_pb2.TranscriptEvent.EventType",
+    event_type: stt_pb2.TranscriptEvent.EventType,
 ) -> stt_pb2.TranscriptEvent:
     kwargs = {
         "type": event_type,
@@ -47,4 +47,3 @@ def error_event(code: str, message: str) -> stt_pb2.TranscriptEvent:
         error_code=code,
         error_message=message,
     )
-

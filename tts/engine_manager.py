@@ -1,10 +1,13 @@
+import asyncio
 from collections import OrderedDict
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from threading import Lock
 
 from config import config
-from engines.piper_engine import PiperEngine
+from engines.base import TTSEngine
+from engines.factory import get_provider_class
+from exceptions import VoiceNotFoundError
 
 
 class EngineManager:
@@ -12,8 +15,9 @@ class EngineManager:
         self.voice_dir: Path = config.voices.directory
         self.default_voice = config.voices.default
         self.max_loaded_voices = max_loaded_voices
+        self._engine_cls = get_provider_class(config.engine.provider)
 
-        self._engines: OrderedDict[str, PiperEngine] = OrderedDict()
+        self._engines: OrderedDict[str, TTSEngine] = OrderedDict()
         self._ref_counts: dict[str, int] = {}
         # Guards all three dicts above - get_engine/acquire/release can
         # be called concurrently from multiple request-handling threads
@@ -22,36 +26,15 @@ class EngineManager:
         self._lock = Lock()
 
     def list_voices(self) -> list[str]:
-        voices = []
-        for model in self.voice_dir.glob("*.onnx"):
-            config_file = Path(str(model) + ".json")
-            if config_file.exists():
-                voices.append(model.name)
-        return voices
-
-    def get_voice_path(self, voice_name: str | None = None) -> Path:
-        if voice_name is None:
-            voice_name = self.default_voice
-
-        if Path(voice_name).name != voice_name:
-            raise FileNotFoundError(f"Voice not found: {voice_name}")
-
-        voice_path = self.voice_dir / voice_name
-        if not voice_path.is_file():
-            raise FileNotFoundError(f"Voice not found: {voice_path}")
-
-        json_path = Path(str(voice_path) + ".json")
-        if not json_path.exists():
-            raise FileNotFoundError(f"Missing voice config: {json_path}")
-
-        return voice_path
+        return self._engine_cls.list_available(self.voice_dir)
 
     @contextmanager
     def acquire_engine(self, voice_name: str | None = None):
         """
-        Preferred way to use an engine. Increments a ref count while
-        the `with` block is active, so eviction can never remove an
-        engine that's mid-use by this or any other concurrent request.
+        Preferred way to use an engine from sync code. Increments a ref
+        count while the `with` block is active, so eviction can never
+        remove an engine that's mid-use by this or any other concurrent
+        request.
 
         Usage:
             with engine_manager.acquire_engine(request.voice) as engine:
@@ -76,26 +59,58 @@ class EngineManager:
                 # this engine was pinned in use.
                 self._evict_if_over_capacity()
 
-    def get_engine(self, voice_name: str | None = None) -> PiperEngine:
+    @asynccontextmanager
+    async def aacquire_engine(self, voice_name: str | None = None):
+        """
+        Async-safe equivalent of acquire_engine(), for use from
+        `async def` call sites (grpc servicer, websocket routes). Runs
+        the potentially-slow load in a thread so a cold voice never
+        blocks the event loop and stalls every other concurrent stream.
+
+        Usage:
+            async with engine_manager.aacquire_engine(request.voice) as engine:
+                ...
+        """
+        voice_name = voice_name or self.default_voice
+        engine = await asyncio.to_thread(self._get_or_load, voice_name)
+
+        with self._lock:
+            self._ref_counts[voice_name] = self._ref_counts.get(voice_name, 0) + 1
+
+        try:
+            yield engine
+        finally:
+            with self._lock:
+                self._ref_counts[voice_name] -= 1
+                if self._ref_counts[voice_name] <= 0:
+                    del self._ref_counts[voice_name]
+                self._evict_if_over_capacity()
+
+    def get_engine(self, voice_name: str | None = None) -> TTSEngine:
         """
         Unsafe relative to eviction races - kept for simple callers that
         do one quick synchronous synthesis and return immediately (e.g.
         the existing /tts HTTP route), where the window for a race is
-        negligible. Prefer acquire_engine() for anything long-running
-        or concurrent, like StreamSynthesize.
+        negligible. Prefer acquire_engine()/aacquire_engine() for
+        anything long-running or concurrent, like StreamSynthesize.
         """
         return self._get_or_load(voice_name or self.default_voice)
 
-    def _get_or_load(self, voice_name: str) -> PiperEngine:
+    def _get_or_load(self, voice_name: str) -> TTSEngine:
+        if Path(voice_name).name != voice_name:
+            raise VoiceNotFoundError(f"Voice not found: {voice_name}")
+
         with self._lock:
             if voice_name in self._engines:
                 self._engines.move_to_end(voice_name)
                 return self._engines[voice_name]
 
-        # Load outside the lock - model loading is slow (I/O + compute),
-        # no need to hold the lock and block other callers during it.
-        voice_path = self.get_voice_path(voice_name)
-        engine = PiperEngine(voice_path)
+        # Resolve + load outside the lock - model loading is slow (I/O +
+        # compute), no need to hold the lock and block other callers
+        # (even ones asking for an already-cached, different voice)
+        # during it.
+        voice_path = self._engine_cls.resolve_path(self.voice_dir, voice_name)
+        engine = self._engine_cls(voice_path)
 
         with self._lock:
             # Another thread may have loaded the same voice while we
@@ -106,10 +121,15 @@ class EngineManager:
             if voice_name not in self._engines:
                 self._engines[voice_name] = engine
             self._engines.move_to_end(voice_name)
-            self._evict_if_over_capacity()
+            # Protect `voice_name` itself - without this, a fresh entry
+            # with no active ref count yet (the common case: get_engine()
+            # never increments one) could get evicted by its own
+            # insertion's capacity sweep if an older entry is pinned
+            # in-use, and we'd return a KeyError below.
+            self._evict_if_over_capacity(protect=voice_name)
             return self._engines[voice_name]
 
-    def _evict_if_over_capacity(self) -> None:
+    def _evict_if_over_capacity(self, protect: str | None = None) -> None:
         """Must be called with self._lock held."""
         if len(self._engines) <= self.max_loaded_voices:
             return
@@ -121,6 +141,8 @@ class EngineManager:
         for voice_name in list(self._engines.keys()):
             if len(self._engines) <= self.max_loaded_voices:
                 return
+            if voice_name == protect:
+                continue
             if self._ref_counts.get(voice_name, 0) > 0:
                 continue  # in use, skip
             del self._engines[voice_name]

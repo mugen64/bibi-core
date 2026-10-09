@@ -3,7 +3,6 @@ from io import BytesIO
 
 
 class WavEncoder:
-
     def encode(self, chunks) -> BytesIO:
         buffer = BytesIO()
 

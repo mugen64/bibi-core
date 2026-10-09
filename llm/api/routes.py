@@ -21,29 +21,34 @@ def _validate_prompt(prompt: str) -> None:
         )
 
 
-@router.post("/chat")
-async def chat(request: ChatRequest):
-    _validate_prompt(request.prompt)
-
+async def _ensure_engine_ready() -> None:
     try:
         await engine_manager.ensure_ready()
     except ModelNotFoundError as e:
-        raise HTTPException(status_code=404, detail={"code": e.code, "message": str(e)})
+        raise HTTPException(
+            status_code=404, detail={"code": e.code, "message": str(e)}
+        ) from e
     except OllamaUnreachableError as e:
-        raise HTTPException(status_code=503, detail={"code": e.code, "message": str(e)})
+        raise HTTPException(
+            status_code=503, detail={"code": e.code, "message": str(e)}
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"code": "internal_error", "message": str(e)})
+        raise HTTPException(
+            status_code=500, detail={"code": "internal_error", "message": str(e)}
+        ) from e
 
+
+@router.post("/chat")
+async def chat(request: ChatRequest):
+    _validate_prompt(request.prompt)
+    await _ensure_engine_ready()
 
     response_chunks = []
 
     history = [m.model_dump() for m in request.conversation_history]
     history.insert(0, personality)
     try:
-
-        async for chunk in engine_manager.stream_chat_response(
-            request.prompt, history
-        ):
+        async for chunk in engine_manager.stream_chat_response(request.prompt, history):
             response_chunks.append({"type": "chunk", "text": chunk})
 
         response_chunks.append({"type": "done"})
@@ -56,14 +61,24 @@ async def chat(request: ChatRequest):
 
     except LLMServiceError as e:
         logger.warning("Stream failed mid-generation: %s", e)
-        raise HTTPException(status_code=400, detail={"type": "error", "code": e.code, "message": str(e)})
+        raise HTTPException(
+            status_code=400, detail={"type": "error", "code": e.code, "message": str(e)}
+        ) from e
     except asyncio.CancelledError:
         logger.info("Client disconnected mid-stream, stopping generation")
-        raise HTTPException(status_code=400, detail={"type": "error", "code": "stream_cancelled", "message": "stream cancelled"})
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "type": "error",
+                "code": "stream_cancelled",
+                "message": "stream cancelled",
+            },
+        ) from None
     except Exception as e:
         logger.exception("Unexpected error during generation")
-        raise HTTPException(status_code=500, detail={"type":"internal_error", "message": str(e)})
-
+        raise HTTPException(
+            status_code=500, detail={"type": "internal_error", "message": str(e)}
+        ) from e
 
 
 @router.post("/chat/stream")
@@ -83,15 +98,7 @@ async def chat_stream(request: ChatRequest):
     test standalone with curl before wiring up gRPC.
     """
     _validate_prompt(request.prompt)
-
-    try:
-        await engine_manager.ensure_ready()
-    except ModelNotFoundError as e:
-        raise HTTPException(status_code=404, detail={"code": e.code, "message": str(e)})
-    except OllamaUnreachableError as e:
-        raise HTTPException(status_code=503, detail={"code": e.code, "message": str(e)})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={"code": "internal_error", "message": str(e)})
+    await _ensure_engine_ready()
 
     async def generate():
         history = [m.model_dump() for m in request.conversation_history]
@@ -109,7 +116,9 @@ async def chat_stream(request: ChatRequest):
             # partway through - headers are committed, so the error has to
             # travel as a line inside the stream, not an HTTP status code.
             logger.warning("Stream failed mid-generation: %s", e)
-            yield json.dumps({"type": "error", "code": e.code, "message": str(e)}) + "\n"
+            yield (
+                json.dumps({"type": "error", "code": e.code, "message": str(e)}) + "\n"
+            )
 
         except asyncio.CancelledError:
             # Client (Go gateway) disconnected early - e.g. user interrupted
@@ -121,11 +130,15 @@ async def chat_stream(request: ChatRequest):
             # Catch-all so an unexpected bug never leaves the gateway
             # hanging on a connection that dies with no explanation.
             logger.exception("Unexpected error during generation")
-            yield json.dumps(
-                {"type": "error", "code": "internal_error", "message": str(e)}
-            ) + "\n"
+            yield (
+                json.dumps(
+                    {"type": "error", "code": "internal_error", "message": str(e)}
+                )
+                + "\n"
+            )
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
+
 
 @router.get("/health", response_model=HealthResponse)
 async def health():

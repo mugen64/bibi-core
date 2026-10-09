@@ -4,19 +4,18 @@ import grpc
 
 import tts_pb2
 import tts_pb2_grpc
-from utils.async_io import iter_in_thread
-from engines.piper_engine import PiperEngine
 from engine_manager import engine_manager
+from exceptions import VoiceNotFoundError
+from utils.async_io import iter_in_thread
 
 logger = logging.getLogger(__name__)
 
 
 class TextToSpeechServicer(tts_pb2_grpc.TextToSpeechServicer):
     async def StreamSynthesize(self, request, context):
-       
+
         try:
-        
-            with engine_manager.acquire_engine(request.voice or None) as engine:
+            async with engine_manager.aacquire_engine(request.voice or None) as engine:
                 async for chunk in iter_in_thread(engine.stream, request.text):
                     if context.cancelled():
                         logger.info("client cancelled stream, stopping synthesis")
@@ -27,7 +26,7 @@ class TextToSpeechServicer(tts_pb2_grpc.TextToSpeechServicer):
                         channels=chunk.channels,
                         sample_width=chunk.sample_width,
                     )
-        except FileNotFoundError as e:
+        except VoiceNotFoundError as e:
             await context.abort(grpc.StatusCode.NOT_FOUND, str(e))
         except Exception as e:
             # Unlike the HTTP+NDJSON pattern used for llm/, gRPC status
